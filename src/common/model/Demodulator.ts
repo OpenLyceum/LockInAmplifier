@@ -101,9 +101,9 @@ export class Demodulator {
     };
   }
 
-  /** Clear both channel histories. */
-  public reset(): void {
-    this.inPhaseFilter.reset();
+  /** Clear both channel histories, optionally preserving the current X level during a filter change. */
+  public reset(initialX = 0): void {
+    this.inPhaseFilter.reset(initialX);
     this.quadratureFilter?.reset();
     this.mixedInPhase = 0;
   }

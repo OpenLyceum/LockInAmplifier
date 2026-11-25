@@ -92,6 +92,11 @@ export class StringManager {
     };
   }
 
+  /** Shared instrument labels and formatting patterns. */
+  public getInstrumentStrings() {
+    return stringProperties;
+  }
+
   /** Accessibility strings for the Signal and Noise screen. */
   public getSignalAndNoiseA11yStrings() {
     return stringProperties.a11y.signalAndNoise;

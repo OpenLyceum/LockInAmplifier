@@ -1,30 +1,16 @@
-/**
- * SignalAndNoiseKeyboardHelpContent.ts
- *
- * Content for the keyboard-help dialog (the "?" button in the navigation bar).
- * The template's only interactions are buttons and Reset All, so a single
- * basic-actions section covers the available keyboard controls. When the sim
- * grows, fill the right column (pattern stubbed below).
- */
-
+/** Keyboard guidance for the sliders and playback on the SignalAndNoise screen. */
 import {
   BasicActionsKeyboardHelpSection,
-  // SliderControlsKeyboardHelpSection,
-  // TimeControlsKeyboardHelpSection,
+  SliderControlsKeyboardHelpSection,
+  TimeControlsKeyboardHelpSection,
   TwoColumnKeyboardHelpContent,
 } from "scenerystack/scenery-phet";
 
 export class SignalAndNoiseKeyboardHelpContent extends TwoColumnKeyboardHelpContent {
   public constructor() {
-    const leftColumn = [new BasicActionsKeyboardHelpSection()];
-
-    // Right column — uncomment when the sim adds sliders and/or TimeControlNode:
-    // const rightColumn = [
-    //   new SliderControlsKeyboardHelpSection(),
-    //   // new TimeControlsKeyboardHelpSection(),
-    // ];
-    const rightColumn: never[] = [];
-
-    super(leftColumn, rightColumn);
+    super(
+      [new SliderControlsKeyboardHelpSection()],
+      [new TimeControlsKeyboardHelpSection(), new BasicActionsKeyboardHelpSection()],
+    );
   }
 }

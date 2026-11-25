@@ -1,151 +1,358 @@
-/**
- * SignalAndNoiseScreenView.ts
- *
- * The top-level view for the simulation screen.
- *
- * All visual nodes are added here. Follow these conventions:
- *   - Use this.layoutBounds for positioning (never magic pixel values)
- *   - Keep a ResetAllButton that calls model.reset() and this.reset()
- *   - Override step(dt) for frame-by-frame animation
- *
- * ── Adding content ────────────────────────────────────────────────────────────
- * 1. Create Node subclasses in separate files (e.g. LockInAmplifierControlPanel.ts)
- * 2. Instantiate them here and call this.addChild(...)
- * 3. Link them to model properties:
- *      model.isRunningProperty.link( isRunning => { ... } );
- *
- * ── Layout bounds ─────────────────────────────────────────────────────────────
- * SceneryStack uses a virtual 1024×618 coordinate space by default.
- * this.layoutBounds gives you the full rectangle; use it for alignment:
- *   center, minX, maxX, minY, maxY, width, height
- */
-
+/** Time and frequency views of the same noisy input, with a right-hand instrument panel. */
+import { DerivedProperty, NumberProperty } from "scenerystack/axon";
+import { Range } from "scenerystack/dot";
 import { type EmptySelfOptions, optionize } from "scenerystack/phet-core";
-import { Node, Rectangle } from "scenerystack/scenery";
-import { ResetAllButton } from "scenerystack/scenery-phet";
+import { StringUtils } from "scenerystack/phetcommon";
+import { GridBox, HBox, Node, VBox } from "scenerystack/scenery";
+import { PlayPauseButton, ResetAllButton } from "scenerystack/scenery-phet";
 import { ScreenView, type ScreenViewOptions } from "scenerystack/sim";
-import { FLAT_RESET_ALL_BUTTON_OPTIONS } from "../../common/LockInAmplifierButtonOptions.js";
-import LockInAmplifierColors from "../../LockInAmplifierColors.js";
-import { SCREEN_VIEW_MARGIN } from "../../LockInAmplifierConstants.js";
+import {
+  FLAT_BUTTON_APPEARANCE_OPTIONS,
+  FLAT_RESET_ALL_BUTTON_OPTIONS,
+} from "../../common/LockInAmplifierButtonOptions.js";
+import {
+  controlRow,
+  instrumentAccordion,
+  instrumentCheckbox,
+  instrumentCombo,
+  numberChoices,
+} from "../../common/view/instrumentControls.js";
+import {
+  chartLabelFont,
+  instrumentStrings,
+  instrumentText,
+  valueStringProperty,
+} from "../../common/view/instrumentText.js";
+import { LockInAmplifierNumberControl } from "../../common/view/LockInAmplifierNumberControl.js";
+import { ReadoutRow } from "../../common/view/ReadoutRow.js";
+import { ScopeChartNode } from "../../common/view/ScopeChartNode.js";
+import { SpectrumChartNode } from "../../common/view/SpectrumChartNode.js";
+import { StringManager } from "../../i18n/StringManager.js";
+import Colors from "../../LockInAmplifierColors.js";
+import {
+  CHART_SETTINGS,
+  P2_LAYOUT_SETTINGS as layout,
+  NOISE_SETTINGS,
+  SAMPLING_SETTINGS,
+  SPECTRUM_SETTINGS,
+  SIGNAL_NOISE_SETTINGS as settings,
+} from "../../LockInAmplifierConstants.js";
 import type { SignalAndNoiseModel } from "../model/SignalAndNoiseModel.js";
 import { SignalAndNoiseScreenSummaryContent } from "./SignalAndNoiseScreenSummaryContent.js";
 
-export type SignalAndNoiseScreenViewOptions = ScreenViewOptions;
+const { charts, controls, units } = instrumentStrings;
+const a11y = StringManager.getInstance().getSignalAndNoiseA11yStrings();
+const [, defaultWindow] = CHART_SETTINGS.SCOPE_WINDOWS;
 
 export class SignalAndNoiseScreenView extends ScreenView {
-  public constructor(model: SignalAndNoiseModel, providedOptions?: SignalAndNoiseScreenViewOptions) {
-    // ── Accessibility: screen summary ───────────────────────────────────────────
-    // The screen summary is the first thing a screen-reader user encounters. It
-    // is registered here, in the ScreenView's super() options, so every sim wires
-    // it the same way. See SignalAndNoiseScreenSummaryContent for the four content regions.
-    const options = optionize<SignalAndNoiseScreenViewOptions, EmptySelfOptions, ScreenViewOptions>()(
-      {
-        screenSummaryContent: new SignalAndNoiseScreenSummaryContent(model),
-      },
-      providedOptions,
+  private readonly scope: ScopeChartNode<"input" | "signal">;
+  private readonly spectrum: SpectrumChartNode;
+
+  public constructor(model: SignalAndNoiseModel, providedOptions?: ScreenViewOptions) {
+    super(
+      optionize<ScreenViewOptions, EmptySelfOptions, ScreenViewOptions>()(
+        {
+          screenSummaryContent: new SignalAndNoiseScreenSummaryContent(model),
+        },
+        providedOptions,
+      ),
     );
-    super(options);
-
-    // ── Background ────────────────────────────────────────────────────────────
-    // A full-screen rectangle that follows the active color profile.
-    // Replace or remove once you add real content.
-    const backgroundRect = new Rectangle(0, 0, this.layoutBounds.width, this.layoutBounds.height, {
-      fill: LockInAmplifierColors.backgroundColorProperty,
+    const bounds = this.layoutBounds;
+    const left = bounds.left + layout.MARGIN;
+    const top = bounds.top + layout.MARGIN;
+    const width = bounds.width - 2 * layout.MARGIN - layout.GAP - layout.CONTROL_WIDTH;
+    const right = bounds.right - layout.MARGIN;
+    const windowProperty = new NumberProperty(defaultWindow, { validValues: [...CHART_SETTINGS.SCOPE_WINDOWS] });
+    this.scope = new ScopeChartNode(model.traces, model.phaseHistory, {
+      width,
+      height: layout.SIGNAL_SCOPE_HEIGHT,
+      title: charts.scopeStringProperty,
+      xTitle: charts.timeMsStringProperty,
+      yUnit: charts.voltageStringProperty,
+      accessibleDescription: a11y.scopeStringProperty,
+      windowProperty,
+      showLegend: true,
+      traces: [
+        { key: "input", color: Colors.inputTraceColorProperty, label: charts.inputStringProperty },
+        {
+          key: "signal",
+          color: Colors.cleanTraceColorProperty,
+          label: charts.cleanStringProperty,
+          visibleProperty: model.showSignalProperty,
+        },
+      ],
     });
-    this.addChild(backgroundRect);
-
-    // ── Accessibility: per-control names ────────────────────────────────────────
-    // EVERY interactive node must carry an `accessibleName` (and an
-    // `accessibleHelpText` where useful), sourced from the StringManager `a11y`
-    // string group — never a hard-coded English literal. Sun/scenery-phet controls
-    // (NumberControl, Checkbox, ComboBox, AquaRadioButtonGroup, …) accept it as an
-    // option; a draggable plain Node needs `tagName: "div", focusable: true` too.
-    // Example (uncomment and adapt when you add a real control; add the
-    // `a11y.controls.startButton` string to every strings_*.json first):
-    //
-    //   const a11y = StringManager.getInstance().getA11yStrings();
-    //   const startButton = new RectangularPushButton({
-    //     ...FLAT_RECTANGULAR_BUTTON_OPTIONS, // flat appearance, not SceneryStack's default 3-D look
-    //     content: someIcon,
-    //     listener: () => model.start(),
-    //     accessibleName: a11y.controls.startButtonStringProperty,
-    //   });
-    //   this.addChild(startButton);
-
-    // ── Reset All button ──────────────────────────────────────────────────────
-    // Always position at bottom-right (PhET convention).
-    const resetAllButton = new ResetAllButton({
-      ...FLAT_RESET_ALL_BUTTON_OPTIONS,
-      listener: () => {
-        model.reset();
-        this.reset();
+    const mainsPeak = NOISE_SETTINGS.MAINS_FREQUENCIES.NORTH_AMERICA;
+    this.spectrum = new SpectrumChartNode({
+      width,
+      height: layout.SIGNAL_SPECTRUM_HEIGHT,
+      title: charts.spectrumStringProperty,
+      xTitle: charts.frequencyHzStringProperty,
+      yUnit: charts.decibelVoltsStringProperty,
+      accessibleDescription: a11y.spectrumStringProperty,
+      color: Colors.inputTraceColorProperty,
+      magnitudes: () => model.spectrumMagnitudes,
+      band: {
+        frequencyProperty: model.frequencyProperty,
+        bandwidthProperty: model.bandwidthProperty,
+        visibleProperty: model.showBandProperty,
       },
-      right: this.layoutBounds.maxX - SCREEN_VIEW_MARGIN,
-      bottom: this.layoutBounds.maxY - SCREEN_VIEW_MARGIN,
+      peaks: [
+        { frequency: () => (model.amplitudeProperty.value > 0 ? model.frequencyProperty.value : null) },
+        { frequency: () => (model.mainsAmplitudeProperty.value > 0 ? mainsPeak : null) },
+        { frequency: () => (model.mainsAmplitudeProperty.value > 0 ? 3 * mainsPeak : null) },
+      ],
+      waitingMessage: true,
+      calculateNoiseFloor: true,
     });
-    this.addChild(resetAllButton);
+    const rmsWidth = (width - layout.GAP) / 4;
+    const bandSnr = new ReadoutRow(
+      controls.bandSnrStringProperty,
+      valueStringProperty(model.bandSnrProperty, units.decibelsStringProperty, 1),
+      rmsWidth,
+    );
+    bandSnr.visibleProperty = model.showBandProperty;
+    const measurements = new GridBox({
+      rows: [
+        [
+          new ReadoutRow(
+            controls.signalRmsStringProperty,
+            valueStringProperty(model.signalRmsProperty, units.millivoltsStringProperty, 1, 1000),
+            rmsWidth,
+          ),
+          new ReadoutRow(
+            controls.noiseRmsStringProperty,
+            valueStringProperty(model.noiseRmsProperty, units.millivoltsStringProperty, 1, 1000),
+            rmsWidth,
+          ),
+          new ReadoutRow(
+            controls.wideSnrStringProperty,
+            valueStringProperty(model.wideSnrProperty, units.decibelsStringProperty, 1),
+            rmsWidth,
+          ),
+          bandSnr,
+        ],
+      ],
+      xSpacing: layout.GAP / 3,
+      excludeInvisibleChildrenFromBounds: false,
+    });
+    const plots = new VBox({
+      align: "left",
+      spacing: layout.GAP,
+      children: [this.scope, this.spectrum, measurements],
+      left,
+      top,
+    });
 
-    // ── Accessibility: keyboard / reading traversal order ───────────────────────
-    // Make the parallel DOM (Tab order and screen-reader reading order)
-    // deterministic and independent of child z-order. ScreenView throws if you
-    // set pdomOrder on itself, so add a lightweight wrapper Node that "borrows"
-    // the interactive nodes in the order a user should reach them — Reset All
-    // last. Non-interactive decoration (background, placeholder) is omitted.
-    this.addChild(
-      new Node({
-        pdomOrder: [
-          // TODO: add the sim's interactive nodes here, in traversal order
-          resetAllButton,
+    const popupLayer = new Node();
+    const signalPanel = instrumentAccordion(
+      controls.signalStringProperty,
+      new VBox({
+        align: "left",
+        spacing: layout.SIGNAL_CONTROL_SPACING,
+        children: [
+          new LockInAmplifierNumberControl(
+            controls.amplitudeStringProperty,
+            model.amplitudeProperty,
+            new Range(...settings.AMPLITUDE_RANGE),
+            units.voltsStringProperty,
+            {
+              decimals: 3,
+              delta: 0.005,
+              accessibleName: a11y.controls.amplitudeStringProperty,
+            },
+          ),
+          new LockInAmplifierNumberControl(
+            controls.frequencyStringProperty,
+            model.frequencyProperty,
+            new Range(...settings.FREQUENCY_RANGE),
+            units.hertzStringProperty,
+            {
+              logarithmic: true,
+              decimals: 0,
+              accessibleName: a11y.controls.frequencyStringProperty,
+            },
+          ),
+          instrumentCheckbox(
+            model.showSignalProperty,
+            controls.showSignalStringProperty,
+            a11y.controls.showSignalStringProperty,
+          ),
         ],
       }),
     );
+    const pinkChoices = numberChoices(
+      Object.values(NOISE_SETTINGS.PINK_CORNERS).filter((value) => value > 0),
+      units.hertzStringProperty,
+    );
+    const pinkCombo = instrumentCombo(
+      model.pinkCornerProperty,
+      [{ value: NOISE_SETTINGS.PINK_CORNERS.OFF, labelProperty: controls.offStringProperty }, ...pinkChoices],
+      popupLayer,
+      a11y.controls.pinkStringProperty,
+    );
+    const noisePanel = instrumentAccordion(
+      controls.noiseStringProperty,
+      new VBox({
+        align: "left",
+        spacing: layout.SIGNAL_CONTROL_SPACING,
+        children: [
+          new LockInAmplifierNumberControl(
+            controls.densityStringProperty,
+            model.densityProperty,
+            new Range(...settings.DENSITY_RANGE),
+            units.densityStringProperty,
+            {
+              decimals: 1,
+              multiplier: 1000,
+              accessibleName: a11y.controls.densityStringProperty,
+            },
+          ),
+          controlRow(controls.pinkStringProperty, pinkCombo),
+          new LockInAmplifierNumberControl(
+            controls.mainsStringProperty,
+            model.mainsAmplitudeProperty,
+            new Range(...settings.MAINS_RANGE),
+            units.voltsStringProperty,
+            {
+              decimals: 2,
+              accessibleName: a11y.controls.mainsStringProperty,
+            },
+          ),
+          instrumentText(controls.noiseNoteStringProperty, {
+            font: chartLabelFont,
+            fill: Colors.mutedTextColorProperty,
+          }),
+        ],
+      }),
+    );
+    const recordCombo = instrumentCombo(
+      model.recordLengthProperty,
+      numberChoices(
+        SPECTRUM_SETTINGS.RECORD_LENGTHS,
+        units.secondsStringProperty,
+        (count) => count / SAMPLING_SETTINGS.SAMPLE_RATE,
+        1,
+      ),
+      popupLayer,
+      a11y.controls.recordStringProperty,
+      "above",
+    );
+    const averagesCombo = instrumentCombo(
+      model.averagesProperty,
+      numberChoices(SPECTRUM_SETTINGS.AVERAGE_COUNTS, units.numberStringProperty),
+      popupLayer,
+      a11y.controls.averagesStringProperty,
+      "above",
+    );
+    const bandwidth = new LockInAmplifierNumberControl(
+      controls.bandwidthStringProperty,
+      model.bandwidthProperty,
+      new Range(...settings.BANDWIDTH_RANGE),
+      units.hertzStringProperty,
+      {
+        logarithmic: true,
+        decimals: 2,
+        accessibleName: a11y.controls.bandwidthStringProperty,
+        accessibleHelpText: a11y.controls.bandwidthHelpStringProperty,
+      },
+    );
+    model.showBandProperty.link((visible) => {
+      bandwidth.enabled = visible;
+    });
+    const rbwProperty = new DerivedProperty([model.recordLengthProperty], () => model.rbw);
+    const recordCountProperty = new DerivedProperty(
+      [model.averagedRecordsProperty, model.averagesProperty, charts.recordsStringProperty],
+      (count, target, pattern) => StringUtils.fillIn(pattern, { count, target }),
+    );
+    const analysisPanel = instrumentAccordion(
+      controls.analysisStringProperty,
+      new VBox({
+        align: "left",
+        spacing: layout.SIGNAL_CONTROL_SPACING,
+        children: [
+          controlRow(controls.recordStringProperty, recordCombo),
+          new HBox({
+            spacing: layout.GAP,
+            children: [
+              controlRow(controls.averagesStringProperty, averagesCombo),
+              instrumentText(recordCountProperty, { font: chartLabelFont, fill: Colors.mutedTextColorProperty }),
+            ],
+          }),
+          new GridBox({
+            rows: [
+              [
+                new ReadoutRow(
+                  charts.rbwStringProperty,
+                  valueStringProperty(rbwProperty, units.hertzStringProperty, 2),
+                  layout.RBW_READOUT_WIDTH,
+                ),
+                new ReadoutRow(
+                  charts.floorStringProperty,
+                  valueStringProperty(this.spectrum.noiseFloorProperty, units.decibelVoltsStringProperty, 1),
+                  layout.NOISE_FLOOR_READOUT_WIDTH,
+                ),
+              ],
+            ],
+            xSpacing: layout.GAP,
+          }),
+          instrumentCheckbox(
+            model.showBandProperty,
+            controls.showBandStringProperty,
+            a11y.controls.showBandStringProperty,
+          ),
+          bandwidth,
+        ],
+      }),
+    );
+    const controlColumn = new VBox({
+      align: "right",
+      spacing: layout.GAP,
+      children: [signalPanel, noisePanel, analysisPanel],
+      top,
+      right,
+    });
+    const timeWindow = instrumentCombo(
+      windowProperty,
+      numberChoices(CHART_SETTINGS.SCOPE_WINDOWS, units.millisecondsStringProperty, (seconds) => seconds * 1000),
+      popupLayer,
+      a11y.controls.windowStringProperty,
+      "above",
+    );
+    const playPause = new PlayPauseButton(model.timer.isPlayingProperty, {
+      ...FLAT_BUTTON_APPEARANCE_OPTIONS,
+      radius: layout.PLAY_RADIUS,
+    });
+    const transport = new HBox({
+      children: [playPause, controlRow(charts.windowStringProperty, timeWindow)],
+      spacing: layout.GAP,
+      left: controlColumn.left,
+      bottom: bounds.bottom - layout.MARGIN,
+    });
+    const reset = new ResetAllButton({
+      ...FLAT_RESET_ALL_BUTTON_OPTIONS,
+      radius: layout.RESET_RADIUS,
+      right,
+      bottom: bounds.bottom - layout.MARGIN,
+      listener: () => {
+        this.interruptSubtreeInput();
+        model.reset();
+        signalPanel.reset();
+        noisePanel.reset();
+        analysisPanel.reset();
+        windowProperty.reset();
+      },
+    });
+    this.addChild(plots);
+    this.addChild(controlColumn);
+    this.addChild(transport);
+    this.addChild(reset);
+    this.addChild(popupLayer);
+    this.addChild(new Node({ pdomOrder: [plots, controlColumn, transport, reset, popupLayer] }));
   }
 
-  /**
-   * Resets view-side state (animations, panel visibility, etc.).
-   * Called by the Reset All button listener.
-   */
-  public reset(): void {
-    // TODO: reset any view-side state here
+  public override step(dt: number): void {
+    this.scope.step(dt);
+    this.spectrum.step(dt);
   }
-
-  /**
-   * Steps the view forward by dt seconds for animation.
-   * @param _dt - elapsed time in seconds
-   */
-  public override step(_dt: number): void {
-    // TODO: implement animation updates here
-  }
-
-  // ── Accessibility / listeners: dispose ─────────────────────────────────────
-  // ScreenView is `isDisposable: false` and lives for the whole sim, so this
-  // class rarely needs dispose(). Child Nodes (and a live currentDetails
-  // DerivedProperty you own on a short-lived object) do. When you add
-  // DerivedProperty / Multilink / Property.link against model state, keep the
-  // references and tear them down — forks copy what they see. Pattern:
-  //
-  // private readonly disposeSignalAndNoiseScreenView: () => void;
-  //
-  // // in the constructor, after creating the listeners:
-  // const statusMultilink = Multilink.multilink(
-  //   [model.someProperty, model.otherProperty],
-  //   (a, b) => { /* update view from model */ },
-  // );
-  // const detailsProperty = new DerivedProperty(
-  //   [model.stateProperty],
-  //   (state) => `State: ${state}`,
-  // ); // → pass as currentDetailsContent in SignalAndNoiseScreenSummaryContent
-  // const onExternal = (v: number) => { /* … */ };
-  // model.externalProperty.link(onExternal); // Property you do NOT own
-  //
-  // this.disposeSignalAndNoiseScreenView = () => {
-  //   statusMultilink.dispose();                 // Multilink you created
-  //   detailsProperty.dispose();                 // DerivedProperty you created
-  //   model.externalProperty.unlink(onExternal); // undo external link
-  // };
-  //
-  // public override dispose(): void {
-  //   this.disposeSignalAndNoiseScreenView();
-  //   super.dispose();
-  // }
 }

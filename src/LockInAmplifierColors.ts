@@ -94,6 +94,66 @@ const LockInAmplifierColors = {
     default: "#1a1a1a",
     projector: "#1a1a1a",
   }),
+  chartBackgroundColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "chartBackground", {
+    default: "#101a2c",
+    projector: "#ffffff",
+  }),
+  chartBorderColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "chartBorder", {
+    default: "#394861",
+    projector: "#7e8b99",
+  }),
+  gridColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "grid", {
+    default: "#33425a",
+    projector: "#d2dae4",
+  }),
+  axisColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "axis", {
+    default: "#9aadc4",
+    projector: "#405369",
+  }),
+  mutedTextColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "mutedText", {
+    default: "#b2c2d8",
+    projector: "#384b62",
+  }),
+  inputTraceColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "inputTrace", {
+    default: "#65c4ff",
+    projector: "#005e96",
+  }),
+  cleanTraceColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "cleanTrace", {
+    default: "#f6bb62",
+    projector: "#9d4b00",
+  }),
+  referenceTraceColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "referenceTrace", {
+    default: "#e5a6ff",
+    projector: "#6f289a",
+  }),
+  productTraceColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "productTrace", {
+    default: "#f6bb62",
+    projector: "#9d4b00",
+  }),
+  outputTraceColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "outputTrace", {
+    default: "#7be3c4",
+    projector: "#006756",
+  }),
+  quadratureTraceColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "quadratureTrace", {
+    default: "#fba8cf",
+    projector: "#92225d",
+  }),
+  guideColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "guide", {
+    default: "#f5ecac",
+    projector: "#795600",
+  }),
+  rangeBandColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "rangeBand", {
+    default: "rgba(245, 191, 77, 0.16)",
+    projector: "rgba(169, 111, 0, 0.15)",
+  }),
+  selectedBlockColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "selectedBlock", {
+    default: "#273f5b",
+    projector: "#deedf8",
+  }),
+  badgeBackgroundColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "badgeBackground", {
+    default: "#263851",
+    projector: "#e5edf6",
+  }),
 };
 
 export default LockInAmplifierColors;

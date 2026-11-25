@@ -10,19 +10,59 @@
   "a11y": {
     "signalAndNoise": {
       "screenSummary": {
-        "playArea": "La zone de jeu affiche le contenu principal de la simulation.",
-        "controlArea": "La zone de contrôle comporte un bouton Tout réinitialiser qui ramène la simulation à son état initial.",
-        "interactionHint": "Explorez la simulation en interagissant avec ses commandes."
+        "playArea": "The scope shows input voltage. The spectrum shows the voltage in each frequency bin.",
+        "controlArea": "Change the signal, noise, record length, averages, and detection bandwidth.",
+        "interactionHint": "Reveal the hidden signal, then try a longer record or narrow the detection band."
       },
-      "currentDetails": "La simulation est dans son état initial."
+      "currentDetails": "The signal is at {{frequency}} hertz. Signal RMS is {{signal}} volts and noise RMS is {{noise}} volts.",
+      "controls": {
+        "amplitude": "Amplitude A",
+        "frequency": "Frequency fₛ",
+        "showSignal": "Show hidden signal",
+        "density": "White noise eₙ",
+        "pink": "1/f corner",
+        "mains": "Mains pickup",
+        "record": "Record length",
+        "averages": "Averages",
+        "showBand": "Detection band",
+        "bandwidth": "Bandwidth B",
+        "window": "Time window",
+        "bandwidthHelp": "Includes white and 1/f noise density at the signal frequency."
+      },
+      "scope": "Triggered input waveform, in volts against milliseconds.",
+      "spectrum": "Input magnitude in decibel volts against log frequency."
     },
     "mixing": {
       "screenSummary": {
-        "playArea": "La zone de jeu affiche le contenu principal de la simulation.",
-        "controlArea": "La zone de contrôle comporte un bouton Tout réinitialiser qui ramène la simulation à son état initial.",
-        "interactionHint": "Explorez la simulation en interagissant avec ses commandes."
+        "playArea": "Four aligned plots show the input, reference, product, and filtered output. The strip chart shows how X changes over time.",
+        "controlArea": "Change the reference phase, frequency, or waveform and the low-pass filter settings.",
+        "interactionHint": "Unlock the reference and change its frequency by one hertz to see a beat in X."
       },
-      "currentDetails": "La simulation est dans son état initial."
+      "currentDetails": "The reference is at {{frequency}} hertz, phase {{phase}} degrees. X reads {{output}} volts.",
+      "controls": {
+        "amplitude": "Amplitude A",
+        "lock": "Lock reference to signal",
+        "refFrequency": "Reference fᵣ",
+        "phase": "Phase θ",
+        "waveform": "Waveform",
+        "third": "Add 3rd harmonic to signal",
+        "mixNoise": "Add noise",
+        "showSpectra": "Show spectra",
+        "timeConstant": "Time constant τ",
+        "slope": "Filter slope",
+        "window": "Time window"
+      },
+      "strip": "Ten seconds of filtered X in volts. The latest samples appear at the right.",
+      "scope": "{{stage}} waveform. Time is shared across the four plots.",
+      "spectrum": "{{stage}} spectrum. Frequency is shared across the four plots.",
+      "probes": {
+        "input": "Probe the signal plus noise",
+        "reference": "Probe the reference",
+        "product": "Probe the multiplier product",
+        "filter": "Probe the low-pass filter output",
+        "output": "Probe X",
+        "quadrature": "Probe Y"
+      }
     },
     "filtering": {
       "screenSummary": {
@@ -51,5 +91,96 @@
   },
   "preferences": {
     "title": "Simulation"
+  },
+  "charts": {
+    "scope": "Input waveform",
+    "spectrum": "Input spectrum",
+    "outputHistory": "Output X over time",
+    "input": "Input",
+    "clean": "Hidden signal",
+    "reference": "Reference",
+    "product": "Product",
+    "output": "Output X",
+    "timeMs": "Time (ms)",
+    "timeSeconds": "Time relative to now (s)",
+    "frequencyHz": "Frequency (Hz, log scale)",
+    "voltage": "V",
+    "referenceUnit": "Gain",
+    "decibelVolts": "dB V",
+    "decadeK": "{{value}}k",
+    "dc": "DC",
+    "rbw": "RBW",
+    "floor": "Median floor",
+    "mean": "Mean {{value}} V",
+    "peak": "{{value}} Hz",
+    "window": "Time window",
+    "waiting": "Collecting a record…",
+    "records": "{{count}} / {{target}} records",
+    "latest": "X = {{value}} V",
+    "differencePeak": "Δf {{value}} Hz",
+    "sumPeak": "Σf {{value}} Hz",
+    "dcDifferencePeak": "Δf at DC",
+    "decibelGain": "dB gain"
+  },
+  "controls": {
+    "signal": "Signal",
+    "noise": "Noise",
+    "analysis": "Analysis",
+    "amplitude": "Amplitude A",
+    "frequency": "Frequency fₛ",
+    "showSignal": "Show hidden signal",
+    "density": "White noise eₙ",
+    "pink": "1/f corner",
+    "mains": "Mains pickup",
+    "record": "Record length",
+    "averages": "Averages",
+    "showBand": "Detection band",
+    "bandwidth": "Bandwidth B",
+    "signalRms": "Signal RMS",
+    "noiseRms": "Noise RMS",
+    "wideSnr": "Wide-band SNR",
+    "bandSnr": "Band SNR",
+    "off": "Off",
+    "lock": "Lock reference to signal",
+    "refFrequency": "Reference fᵣ",
+    "phase": "Phase θ",
+    "waveform": "Waveform",
+    "sine": "Sine",
+    "square": "Square",
+    "third": "Add 3rd harmonic to signal",
+    "mixNoise": "Add noise",
+    "showSpectra": "Show spectra",
+    "timeConstant": "Time constant τ",
+    "slope": "Filter slope",
+    "filter": "Low-pass filter",
+    "inputBlock": "⊕  Signal + noise",
+    "referenceBlock": "∿  Reference",
+    "mixerBlock": "⊗  Multiply",
+    "filterBlock": "≋  LPF (τ, n)",
+    "xBlock": "→  X",
+    "yBlock": "→  Y",
+    "identity": "sin a · sin b = ½[cos(a−b) − cos(a+b)]",
+    "difference": "Difference |fₛ − fᵣ|",
+    "sum": "Sum fₛ + fᵣ",
+    "harmonicNote": "At 3f, the square reference has ⅓ of its fundamental gain.",
+    "noiseNote": "Mains adds lines at 60 Hz and 180 Hz.",
+    "referenceHeading": "Reference",
+    "inputHeading": "Input signal"
+  },
+  "units": {
+    "number": "{{value}}",
+    "volts": "{{value}} V",
+    "millivolts": "{{value}} mV",
+    "density": "{{value}} mV/√Hz",
+    "hertz": "{{value}} Hz",
+    "milliseconds": "{{value}} ms",
+    "seconds": "{{value}} s",
+    "degrees": "{{value}}°",
+    "decibels": "{{value}} dB",
+    "decibelVolts": "{{value}} dB V",
+    "slope": "{{value}} dB/oct",
+    "unavailable": "—",
+    "infinity": "∞",
+    "negativeInfinity": "−∞"
   }
 }

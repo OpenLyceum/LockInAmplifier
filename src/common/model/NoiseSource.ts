@@ -83,14 +83,30 @@ export class NoiseSource {
     // (2/fs)(1-a²)/|1-a exp(-j·2πf/fs)|². Independent poles add in PSD. For log-spaced corners,
     // the continuous Lorentzian approximation integrates as ∫df_c/(f_c²+f²) ∝ 1/f in the band.
     // Normalize the exact discrete sum at the selected crossover to equal the white PSD there.
-    const frequencyTerm = 4 * Math.sin((Math.PI * corner) / SAMPLE_RATE) ** 2;
-    let unitDensitySquared = 0;
+    this.pinkGain = 1 / Math.sqrt(this.poleDensitySquared(corner));
+  }
+
+  /** One-sided broadband density in V/√Hz. Discrete mains lines are separate. */
+  public densityAt(frequency: number): number {
+    return this.whiteDensity * Math.sqrt(1 + this.pinkGain ** 2 * this.poleDensitySquared(frequency));
+  }
+
+  /** RMS voltage from the white and pink processes and both mains lines, with drift disabled. */
+  public stationaryRms(): number {
+    const broadbandVariance = this.whiteDensity ** 2 * (SAMPLE_RATE / 2 + PINK_POLES * this.pinkGain ** 2);
+    const mainsVariance = (this.mainsAmplitude ** 2 * (1 + MAINS_THIRD_HARMONIC_RATIO ** 2)) / 2;
+    return Math.sqrt(broadbandVariance + mainsVariance);
+  }
+
+  private poleDensitySquared(frequency: number): number {
+    const frequencyTerm = 4 * Math.sin((Math.PI * frequency) / SAMPLE_RATE) ** 2;
+    let sum = 0;
     for (let pole = 0; pole < PINK_POLES; pole++) {
       const decay = this.decay[pole] as number;
       const innovation = this.innovations[pole] as number;
-      unitDensitySquared += (innovation * innovation) / ((1 - decay) ** 2 + decay * frequencyTerm);
+      sum += innovation ** 2 / ((1 - decay) ** 2 + decay * frequencyTerm);
     }
-    this.pinkGain = 1 / Math.sqrt((2 / SAMPLE_RATE) * unitDensitySquared);
+    return (2 / SAMPLE_RATE) * sum;
   }
 
   /** Advance the stochastic processes by one sample and evaluate deterministic pickup at t seconds. */
