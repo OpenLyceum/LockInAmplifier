@@ -25,6 +25,7 @@ export class RotaryKnob extends AccessibleSliderNode {
       keyboardStep: settings.PHASE_STEP,
       shiftKeyboardStep: settings.PHASE_STEP,
       pageKeyboardStep: settings.COARSE_PHASE_STEP,
+      pdomDependencies: [degrees],
       pdomCreateAriaValueText: (radians) => formatValue(degrees.value, (radians ?? 0) / settings.PHASE_STEP, 0),
       cursor: "pointer",
     };

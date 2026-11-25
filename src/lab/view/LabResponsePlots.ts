@@ -1,5 +1,5 @@
 /** RC notebook plots in log frequency, using recorded measurements only. */
-import type { TReadOnlyProperty } from "scenerystack/axon";
+import { NumberProperty, PatternStringProperty, type TReadOnlyProperty } from "scenerystack/axon";
 import { Range } from "scenerystack/dot";
 import { Shape } from "scenerystack/kite";
 import { HBox, Path, type TColor } from "scenerystack/scenery";
@@ -8,7 +8,7 @@ import { instrumentText } from "../../common/view/instrumentText.js";
 import Colors from "../../LockInAmplifierColors.js";
 import { LAB_INSTRUMENT_SETTINGS, LAB_LAYOUT_SETTINGS as layout } from "../../LockInAmplifierConstants.js";
 import type { LabRow } from "../model/VirtualExperimentModel.js";
-import { lab, labLabelFont } from "./labText.js";
+import { lab, labA11y, labLabelFont } from "./labText.js";
 
 const degreesPerRadian = 180 / Math.PI;
 const inputRange = new Range(...LAB_INSTRUMENT_SETTINGS.REFERENCE_RANGE);
@@ -19,12 +19,18 @@ const responseRows = (rows: readonly LabRow[]) =>
     .filter((row) => row.scenario === "rcFilter" && !row.clipped && row.harmonic === 1)
     .sort((a, b) => a.frequency - b.frequency);
 
-class ResponsePlot extends ChartFrame {
+export class ResponsePlot extends ChartFrame {
+  private readonly pointCountProperty: NumberProperty;
   private readonly points: Path;
   private readonly guide: Path;
   private readonly emptyMessage;
 
   public constructor(width: number, title: TReadOnlyProperty<string>, yUnit: TReadOnlyProperty<string>, color: TColor) {
+    const pointCountProperty = new NumberProperty(0);
+    const descriptionProperty = new PatternStringProperty(labA11y.responsePlotStringProperty, {
+      quantity: title,
+      count: pointCountProperty,
+    });
     super({
       width,
       height: layout.RESPONSE_HEIGHT,
@@ -32,7 +38,10 @@ class ResponsePlot extends ChartFrame {
       xTitle: lab.frequencyAxisStringProperty,
       yUnit,
       compact: true,
+      accessibleDescription: descriptionProperty,
     });
+    this.pointCountProperty = pointCountProperty;
+    this.bag.own(pointCountProperty, descriptionProperty);
     this.guide = new Path(null, { stroke: Colors.guideColorProperty, lineDash: [4, 4] });
     this.points = new Path(null, { stroke: color, fill: color });
     this.emptyMessage = instrumentText(lab.responseWaitingStringProperty, {
@@ -49,6 +58,7 @@ class ResponsePlot extends ChartFrame {
   }
 
   public draw(rows: readonly LabRow[], angle: boolean): void {
+    this.pointCountProperty.value = rows.length;
     const extended = rows.some((row) => row.theta > 0 || row.theta < -Math.PI / 2);
     const ticks = angle ? (extended ? [-180, -90, -45, 0, 90, 180] : [-90, -45, 0]) : [0, 0.5, 1];
     this.setAxes(

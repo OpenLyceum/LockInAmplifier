@@ -39,6 +39,7 @@ onReadyToLaunch(() => {
 
   const screens = [
     new SignalAndNoiseScreen({
+      preferences: simPreferences,
       name: stringManager.getScreenNames().signalAndNoiseStringProperty,
       tandem: Tandem.ROOT.createTandem("signalAndNoiseScreen"),
       backgroundColorProperty: LockInAmplifierColors.backgroundColorProperty,
@@ -59,6 +60,7 @@ onReadyToLaunch(() => {
       backgroundColorProperty: LockInAmplifierColors.backgroundColorProperty,
     }),
     new VirtualExperimentScreen({
+      preferences: simPreferences,
       name: stringManager.getScreenNames().labStringProperty,
       tandem: Tandem.ROOT.createTandem("labScreen"),
       backgroundColorProperty: LockInAmplifierColors.backgroundColorProperty,

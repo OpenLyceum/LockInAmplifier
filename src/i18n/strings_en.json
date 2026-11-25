@@ -30,7 +30,9 @@
         "bandwidthHelp": "Includes white and 1/f noise density at the signal frequency."
       },
       "scope": "Triggered input waveform, in volts against milliseconds.",
-      "spectrum": "Input magnitude in decibel volts against log frequency."
+      "spectrum": "Input magnitude in decibel volts against log frequency.",
+      "scopeClean": "Triggered input and hidden signal, in volts against milliseconds.",
+      "spectrumBand": "Input magnitude in decibel volts against log frequency. The detection band is centered at {{frequency}}."
     },
     "mixing": {
       "screenSummary": {
@@ -70,7 +72,7 @@
         "controlArea": "Adjust the filter, amplitude and noise. Step the signal or record a measurement.",
         "interactionHint": "Increase the time constant tenfold. Compare the noise band and settling time. Record several settings to trace a noise curve."
       },
-      "currentDetails": "Time constant {{tau}} milliseconds. Filter order {{order}}. Predicted noise {{sigma}} millivolts. {{count}} recorded measurements.",
+      "currentDetails": "X reads {{x}} millivolts. {{noise}} Time constant {{tau}} milliseconds, {{slope}} decibels per octave. Recorded measurements: {{count}}.",
       "strip": "History of X. Shading represents measured mean plus or minus one standard deviation. A dashed line shows the predicted mean, with thin lines at one predicted standard deviation on each side.",
       "histogram": "Distribution of X. Horizontal bars show the percentage of samples in voltage bins. A Gaussian curve shows the predicted distribution.",
       "bode": "Filter gain in decibels against log frequency. The half-power point is marked. The inset shows a unit-height bandwidth rectangle with the same area as the power response on linear axes.",
@@ -85,7 +87,11 @@
         "clear": "Clear recorded measurements",
         "window": "Filtered output time window",
         "speedHelp": "Fast runs the simulation at ten times normal speed."
-      }
+      },
+      "measuredNoise": "Measured noise is {{sigma}} millivolts.",
+      "predictedNoise": "Predicted noise is {{sigma}} millivolts.",
+      "stepSettled": "The step response has reached its 99 percent settling time.",
+      "sigmaRecorded": "Recorded a standard deviation of {{sigma}}."
     },
     "phase": {
       "screenSummary": {
@@ -96,7 +102,7 @@
       "currentDetails": "Dual mode. X {{x}} millivolts, Y {{y}} millivolts, magnitude {{r}} millivolts, angle {{theta}} degrees.",
       "singleDetails": "Single mode. X {{x}} millivolts.",
       "plane": "Equal-scale voltage axes. A trail fades over three seconds. In dual mode, the arrow and its projections show the output magnitude, phase and quadratures.",
-      "strip": "History of output voltage. Dual mode displays X, Y and magnitude. Single mode displays X.",
+      "strip": "History of X, Y and magnitude in volts against time.",
       "controls": {
         "showFrame": "Show signal frame",
         "signalPhase": "Signal phase φ",
@@ -111,7 +117,9 @@
         "slope": "Filter slope",
         "single": "Single-phase detection",
         "dual": "Dual-phase detection"
-      }
+      },
+      "autoPhaseResult": "Reference phase set to {{phase}}. Y reads {{y}}.",
+      "stripSingle": "History of the in-phase output X in volts."
     },
     "lab": {
       "screenSummary": {
@@ -158,11 +166,33 @@
         "knobHelp": "Drag around the dial. Arrow keys turn it and Shift plus arrow keys make finer adjustments on continuous dials.",
         "frequencyHelp": "The internal reference is logarithmic. Page Up and Page Down make coarse adjustments. Hold Shift with an arrow key for fine adjustments.",
         "noiseHelp": "Choose a noise level to see when voltage peaks overload the selected input range."
-      }
-    }
+      },
+      "autoPhaseResult": "Reference phase set to {{phase}}. Allow the output to settle.",
+      "inputCleared": "Input overload cleared.",
+      "outputCleared": "Output overload cleared.",
+      "rowRecorded": "Row {{count}} recorded in the notebook.",
+      "sampleRevealed": "The hidden values are now shown in the notebook.",
+      "responsePlot": "{{quantity}}. Recorded points plotted: {{count}}."
+    },
+    "keyboard": {
+      "actions": "Instrument shortcuts",
+      "knobs": "Rotary controls",
+      "fine": "Turn continuous knobs in fine steps",
+      "coarse": "Turn knobs in coarse steps",
+      "autoPhase": "Auto Phase",
+      "record": "Record the measurement",
+      "step": "Step the input signal",
+      "autoPhaseKeys": "Press Alt plus Shift plus A for Auto Phase.",
+      "recordKeys": "Press Alt plus Shift plus R to record the measurement.",
+      "stepKeys": "Press Alt plus Shift plus S to step the input signal.",
+      "fineKeys": "Hold Shift and press an arrow key to turn a continuous knob in fine steps.",
+      "coarseKeys": "Press Page Up or Page Down to turn a knob in coarse steps."
+    },
+    "readout": "{{label}}: {{value}}"
   },
   "preferences": {
-    "title": "Simulation"
+    "title": "Simulation",
+    "mainsFrequency": "Mains frequency"
   },
   "charts": {
     "scope": "Input waveform",
@@ -228,7 +258,7 @@
     "filter": "Low-pass filter",
     "inputBlock": "⊕  Signal + noise",
     "referenceBlock": "∿  Reference",
-    "mixerBlock": "⊗  Multiply",
+    "mixerBlock": "⊗  Mixer",
     "filterBlock": "≋  LPF (τ, n)",
     "xBlock": "→  X",
     "yBlock": "→  Y",
@@ -236,7 +266,7 @@
     "difference": "Difference |fₛ − fᵣ|",
     "sum": "Sum fₛ + fᵣ",
     "harmonicNote": "At 3f, the square reference has ⅓ of its fundamental gain.",
-    "noiseNote": "Mains adds lines at 60 Hz and 180 Hz.",
+    "noiseNote": "Mains adds lines at the mains frequency and its third harmonic.",
     "referenceHeading": "Reference",
     "inputHeading": "Input signal"
   },
@@ -320,8 +350,8 @@
     "detunedIdentity": "X = R cos Θ"
   },
   "lab": {
-    "choppedLight": "Chopped light",
-    "bridge": "Strain-gauge bridge",
+    "choppedLight": "Chopped light (optical chopper)",
+    "bridge": "Wheatstone strain-gauge bridge",
     "rcFilter": "Unknown RC filter",
     "experiment": "Experiment",
     "notebook": "Lab notebook",
@@ -426,7 +456,7 @@
     "capacitance": "Stray C",
     "cutoff": "Cutoff f꜀",
     "revealWaiting": "Collect usable rows to compare with the hidden values.",
-    "lightHint": "Try 119 Hz and a 0.03 s time constant. Room-light flicker near 120 Hz creates beats. At 2f the chopped LED contributes zero.",
+    "lightHint": "Tune the chopper close to twice the mains frequency and set τ to 30 ms to see beats. At 2f the chopped LED contributes zero.",
     "bridgeHint": "At θ = 0, strain appears in X and stray capacitance mainly in Y. Use low noise and adjust both trims to null the bridge.",
     "rcHint": "Sweep fᵣ and record each settled point. On the response plot, Θ = −45° at the cutoff when θ = 0.",
     "lightReveal": "Divide the 1f amplitude by 2/π for absolute light levels. This factor cancels in sample-to-open-beam ratios.",

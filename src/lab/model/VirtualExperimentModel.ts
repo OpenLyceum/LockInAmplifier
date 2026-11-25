@@ -26,6 +26,7 @@ import {
   STATISTICS_SETTINGS,
   LAB_INSTRUMENT_SETTINGS as settings,
 } from "../../LockInAmplifierConstants.js";
+import type { LockInAmplifierPreferencesModel } from "../../preferences/LockInAmplifierPreferencesModel.js";
 import { BridgeScenario } from "./scenarios/BridgeScenario.js";
 import { ChoppedLightScenario } from "./scenarios/ChoppedLightScenario.js";
 import { RcFilterScenario } from "./scenarios/RcFilterScenario.js";
@@ -55,6 +56,8 @@ export type LabRow = LabReading &
     | { readonly scenario: "bridge"; readonly strainTrim: number; readonly capacitanceTrim: number }
     | { readonly scenario: "rcFilter" }
   );
+
+type MainsFrequencyProperty = LockInAmplifierPreferencesModel["mainsFrequencyProperty"];
 
 export class VirtualExperimentModel implements TModel {
   public readonly timer = new TimeModel({ initiallyPlaying: true });
@@ -104,13 +107,12 @@ export class VirtualExperimentModel implements TModel {
   private overloadUntil = 0;
   private lastExternalFrequency = LAB_SETTINGS.INITIAL_CHOP_FREQUENCY as number;
   private wasExternal = true;
-  private readonly random = new Random({ seed: NOISE_SETTINGS.DEFAULT_SEED });
+  private readonly random: Random;
+  private readonly seed: number;
 
   public readonly reference = new ReferenceOscillator(this.scenarios.choppedLight.chopper, { followSignalPhase: true });
-  public readonly noise = new NoiseSource({
-    whiteDensity: LAB_SETTINGS.INPUT_NOISE_DENSITY,
-    driftRate: LAB_SETTINGS.DRIFT_RATE,
-  });
+  private readonly unlinkMainsFrequency?: () => void;
+  public readonly noise: NoiseSource;
   public demodulator = new Demodulator();
 
   private readonly controls = [
@@ -134,7 +136,21 @@ export class VirtualExperimentModel implements TModel {
   private readonly histogram = new Histogram();
   private readonly histogramScratch = new Float64Array(WINDOW_SAMPLES);
 
-  public constructor() {
+  public constructor(seed: number = NOISE_SETTINGS.DEFAULT_SEED, mainsFrequencyProperty?: MainsFrequencyProperty) {
+    this.random = new Random({ seed });
+    this.seed = seed;
+    this.noise = new NoiseSource({
+      seed,
+      whiteDensity: LAB_SETTINGS.INPUT_NOISE_DENSITY,
+      driftRate: LAB_SETTINGS.DRIFT_RATE,
+    });
+    if (mainsFrequencyProperty) {
+      const update = (frequency: MainsFrequencyProperty["value"]) => {
+        this.noise.mainsFrequency = frequency;
+      };
+      mainsFrequencyProperty.link(update);
+      this.unlinkMainsFrequency = () => mainsFrequencyProperty.unlink(update);
+    }
     this.randomizeAll();
     this.scenarioProperty.lazyLink((key, previousScenario) => {
       this.savedNotebooks.set(previousScenario, this.rowsProperty.value);
@@ -192,7 +208,7 @@ export class VirtualExperimentModel implements TModel {
   }
 
   private randomizeAll(): void {
-    this.random.setSeed(NOISE_SETTINGS.DEFAULT_SEED);
+    this.random.setSeed(this.seed);
     for (const scenario of Object.values(this.scenarios)) {
       scenario.randomize(this.random);
     }
@@ -315,7 +331,6 @@ export class VirtualExperimentModel implements TModel {
     this.noise.driftRate = LAB_SETTINGS.DRIFT_RATE;
     this.noise.pinkCorner = NOISE_SETTINGS.PINK_CORNERS.OFF;
     this.noise.mainsAmplitude = 0;
-    this.noise.mainsFrequency = NOISE_SETTINGS.MAINS_FREQUENCIES.NORTH_AMERICA;
     this.randomizeAll();
     this.reference.lockedProperty.reset();
     this.savedNotebooks.clear();
@@ -396,6 +411,7 @@ export class VirtualExperimentModel implements TModel {
 
   /** Release the Properties owned by the Lab and its composed models. */
   public dispose(): void {
+    this.unlinkMainsFrequency?.();
     for (const property of this.controls) {
       property.dispose();
     }

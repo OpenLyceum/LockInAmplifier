@@ -86,6 +86,7 @@ export class RotarySwitch<T> extends AccessibleSliderNode {
         pageKeyboardStep: Math.max(1, Math.floor(count / 4)),
         constrainValue: (value: number) => clamp(roundSymmetric(value), 0, maxIndex),
         roundToStepSize: true,
+        pdomDependencies: items.map(({ stringProperty }) => stringProperty),
         pdomCreateAriaValueText: (index) => items[roundSymmetric(index ?? 0)]?.stringProperty.value ?? "",
         cursor: "pointer",
       },

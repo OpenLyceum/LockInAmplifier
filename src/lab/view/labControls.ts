@@ -47,6 +47,7 @@ export function numericKnob(
     valueStringProperty: new DerivedProperty([property, pattern], valueText),
     accessibleName: name,
     accessibleHelpText: help,
+    pdomDependencies: [pattern],
     pdomCreateAriaValueText: (value) => valueText(value ?? property.value),
     ...(enabledProperty ? { enabledProperty } : {}),
   });

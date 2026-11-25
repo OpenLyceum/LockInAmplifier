@@ -258,6 +258,8 @@ export class LabApparatusNode extends Node {
       ],
       listParent,
       names.experimentStringProperty,
+      "below",
+      layout.APPARATUS_SCENARIO_LABEL_WIDTH,
     );
     const scopeToggle = instrumentCheckbox(
       this.scopeVisibleProperty,
@@ -278,6 +280,7 @@ export class LabApparatusNode extends Node {
       constrainValue: roundSymmetric,
       keyboardStep: 1,
       shiftKeyboardStep: 1,
+      pdomDependencies: sampleNames,
       pdomCreateAriaValueText: (index) => sampleNames[index]?.value ?? sampleLabels.none.value,
       trackSize: new Dimension2(drawing.SLIDER_WIDTH, drawing.SLIDER_HEIGHT),
       trackFillEnabled: Colors.knobRimColorProperty,
@@ -377,6 +380,7 @@ export class LabApparatusNode extends Node {
       font: labLabelFont,
       fill: Colors.mutedTextColorProperty,
       lineWrap: width,
+      accessibleParagraph: hintProperty,
     });
     this.scope = new ScopeChartNode({ input: model.scopeInput }, model.scopePhase, {
       width,
@@ -426,7 +430,7 @@ export class LabApparatusNode extends Node {
     this.syncPort.centerY = this.signalPort.centerY;
     this.addChild(this.signalPort);
     this.addChild(this.syncPort);
-    this.pdomOrder = [choose, scopeToggle, this.scope, controls];
+    this.pdomOrder = [choose, scopeToggle, instruction, this.scope, controls];
     this.update(0);
   }
 

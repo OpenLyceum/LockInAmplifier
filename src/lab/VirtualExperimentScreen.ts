@@ -15,18 +15,20 @@ import { Screen } from "scenerystack/sim";
 import type { Tandem } from "scenerystack/tandem";
 import { createVirtualExperimentIcon } from "../common/LockInAmplifierScreenIcons.js";
 import LockInAmplifierColors from "../LockInAmplifierColors.js";
+import type { LockInAmplifierPreferencesModel } from "../preferences/LockInAmplifierPreferencesModel.js";
+import parameters from "../preferences/lockInAmplifierQueryParameters.js";
 import { VirtualExperimentModel } from "./model/VirtualExperimentModel.js";
 import { VirtualExperimentKeyboardHelpContent } from "./view/VirtualExperimentKeyboardHelpContent.js";
 import { VirtualExperimentScreenView } from "./view/VirtualExperimentScreenView.js";
 
 // Require tandem to be explicit — accidental omission would break PhET-iO.
-type VirtualExperimentScreenOptions = ScreenOptions & { tandem: Tandem };
+type VirtualExperimentScreenOptions = ScreenOptions & { tandem: Tandem; preferences?: LockInAmplifierPreferencesModel };
 
 export class VirtualExperimentScreen extends Screen<VirtualExperimentModel, VirtualExperimentScreenView> {
   public constructor(options: VirtualExperimentScreenOptions) {
     super(
       // Model factory — called once when the screen is first shown
-      () => new VirtualExperimentModel(),
+      () => new VirtualExperimentModel(parameters.seed, options.preferences?.mainsFrequencyProperty),
       // View factory — receives the model instance
       (model) =>
         new VirtualExperimentScreenView(model, {

@@ -2,10 +2,11 @@
 import { DerivedProperty, NumberProperty, type TReadOnlyProperty } from "scenerystack/axon";
 import { Range } from "scenerystack/dot";
 import { StringUtils } from "scenerystack/phetcommon";
-import { AlignGroup, HBox, Node, VBox } from "scenerystack/scenery";
+import { AlignGroup, HBox, Node, RichText, VBox } from "scenerystack/scenery";
 import { ResetAllButton, TimeControlNode } from "scenerystack/scenery-phet";
 import { ScreenView, type ScreenViewOptions } from "scenerystack/sim";
 import { RectangularPushButton } from "scenerystack/sun";
+import { Utterance } from "scenerystack/utterance-queue";
 import {
   FLAT_PANEL_PUSH_BUTTON_OPTIONS,
   FLAT_PLAY_PAUSE_STEP_BUTTON_OPTIONS,
@@ -13,12 +14,15 @@ import {
   LIGHT_SURFACE_TEXT_FILL,
   TIME_CONTROL_SPEED_RADIO_OPTIONS,
 } from "../../common/LockInAmplifierButtonOptions.js";
+import { LockInAmplifierHotkeyData as keys } from "../../common/LockInAmplifierHotkeyData.js";
 import { LockInAmplifierPanel } from "../../common/LockInAmplifierPanel.js";
 import { type FilterOrder, predictedOutputNoise } from "../../common/model/LockInMath.js";
 import { DisposalBag } from "../../common/view/DisposalBag.js";
 import { instrumentCombo, numberChoices } from "../../common/view/instrumentControls.js";
+import { bindInstrumentAction } from "../../common/view/instrumentKeyboard.js";
 import {
   chartLabelFont,
+  formatValue,
   instrumentHeadingFont,
   instrumentStrings,
   instrumentText,
@@ -140,8 +144,36 @@ export class FilteringScreenView extends ScreenView {
         listener,
         content: instrumentText(label, { fill: LIGHT_SURFACE_TEXT_FILL }),
       });
-    const step = action(strings.stepStringProperty, a11y.controls.stepStringProperty, () => model.applyStep());
-    const record = action(strings.recordStringProperty, a11y.controls.recordStringProperty, () => model.recordSigma());
+    let stepPending = false;
+    const startStep = () => {
+      model.applyStep();
+      stepPending = true;
+    };
+    const step = action(strings.stepStringProperty, a11y.controls.stepStringProperty, startStep);
+    const settledResponse = new Utterance({ alert: a11y.stepSettledStringProperty });
+    this.bag.own(settledResponse);
+    this.bag.lazyLink(model.timer.timeProperty, (elapsed) => {
+      const start = model.stepTimeProperty.value;
+      if (stepPending && start !== null && elapsed >= start + model.settlingTimeProperty.value) {
+        stepPending = false;
+        step.addAccessibleResponse(settledResponse);
+      }
+    });
+    bindInstrumentAction(step, keys.step, startStep);
+
+    const recordSigma = () => {
+      const count = model.measurementsProperty.value.length;
+      model.recordSigma();
+      if (model.measurementsProperty.value.length > count) {
+        record.addAccessibleResponse(
+          StringUtils.fillIn(a11y.sigmaRecordedStringProperty.value, {
+            sigma: formatValue(units.millivoltsStringProperty.value, model.measuredSigmaProperty.value * 1000, 2),
+          }),
+        );
+      }
+    };
+    const record = action(strings.recordStringProperty, a11y.controls.recordStringProperty, recordSigma);
+    bindInstrumentAction(record, keys.record, recordSigma);
     const collectingProperty = new DerivedProperty(
       [model.measurementProgressProperty, strings.collectingStringProperty],
       (progress, pattern) => StringUtils.fillIn(pattern, { percent: Math.floor(progress * 100) }),
@@ -159,7 +191,7 @@ export class FilteringScreenView extends ScreenView {
     const clear = action(strings.clearStringProperty, a11y.controls.clearStringProperty, () =>
       model.clearMeasurements(),
     );
-    model.measurementsProperty.link((measurements) => {
+    this.bag.link(model.measurementsProperty, (measurements) => {
       clear.enabled = measurements.length > 0;
     });
     const panelContents = settings.CONTROL_WIDTH - 2 * layout.PANEL_INSET;
@@ -275,7 +307,15 @@ export class FilteringScreenView extends ScreenView {
       left,
       bottom,
       spacing: layout.SECTION_GAP,
-      children: [timeControl, instrumentText(strings.tradeoffStringProperty, { maxWidth: settings.FOOTER_NOTE_WIDTH })],
+      children: [
+        timeControl,
+        new RichText(strings.tradeoffStringProperty, {
+          font: chartLabelFont,
+          fill: Colors.textColorProperty,
+          lineWrap: settings.FOOTER_NOTE_WIDTH,
+          accessibleParagraph: strings.tradeoffStringProperty,
+        }),
+      ],
     });
     const reset = new ResetAllButton({
       ...FLAT_RESET_ALL_BUTTON_OPTIONS,
@@ -284,6 +324,7 @@ export class FilteringScreenView extends ScreenView {
       bottom,
       listener: () => {
         this.interruptSubtreeInput();
+        stepPending = false;
         model.reset();
         windowProperty.reset();
       },

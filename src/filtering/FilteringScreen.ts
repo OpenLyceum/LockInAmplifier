@@ -15,6 +15,7 @@ import { Screen } from "scenerystack/sim";
 import type { Tandem } from "scenerystack/tandem";
 import { createFilteringIcon } from "../common/LockInAmplifierScreenIcons.js";
 import LockInAmplifierColors from "../LockInAmplifierColors.js";
+import parameters from "../preferences/lockInAmplifierQueryParameters.js";
 import { FilteringModel } from "./model/FilteringModel.js";
 import { FilteringKeyboardHelpContent } from "./view/FilteringKeyboardHelpContent.js";
 import { FilteringScreenView } from "./view/FilteringScreenView.js";
@@ -26,7 +27,7 @@ export class FilteringScreen extends Screen<FilteringModel, FilteringScreenView>
   public constructor(options: FilteringScreenOptions) {
     super(
       // Model factory — called once when the screen is first shown
-      () => new FilteringModel(),
+      () => new FilteringModel(parameters.seed),
       // View factory — receives the model instance
       (model) =>
         new FilteringScreenView(model, {

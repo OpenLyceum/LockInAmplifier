@@ -15,6 +15,7 @@ import { Screen } from "scenerystack/sim";
 import type { Tandem } from "scenerystack/tandem";
 import { createMixingIcon } from "../common/LockInAmplifierScreenIcons.js";
 import LockInAmplifierColors from "../LockInAmplifierColors.js";
+import parameters from "../preferences/lockInAmplifierQueryParameters.js";
 import { MixingModel } from "./model/MixingModel.js";
 import { MixingKeyboardHelpContent } from "./view/MixingKeyboardHelpContent.js";
 import { MixingScreenView } from "./view/MixingScreenView.js";
@@ -26,7 +27,7 @@ export class MixingScreen extends Screen<MixingModel, MixingScreenView> {
   public constructor(options: MixingScreenOptions) {
     super(
       // Model factory — called once when the screen is first shown
-      () => new MixingModel(),
+      () => new MixingModel(parameters.seed),
       // View factory — receives the model instance
       (model) =>
         new MixingScreenView(model, {

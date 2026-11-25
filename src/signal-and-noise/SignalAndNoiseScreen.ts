@@ -15,18 +15,20 @@ import { Screen } from "scenerystack/sim";
 import type { Tandem } from "scenerystack/tandem";
 import { createSignalAndNoiseIcon } from "../common/LockInAmplifierScreenIcons.js";
 import LockInAmplifierColors from "../LockInAmplifierColors.js";
+import type { LockInAmplifierPreferencesModel } from "../preferences/LockInAmplifierPreferencesModel.js";
+import parameters from "../preferences/lockInAmplifierQueryParameters.js";
 import { SignalAndNoiseModel } from "./model/SignalAndNoiseModel.js";
 import { SignalAndNoiseKeyboardHelpContent } from "./view/SignalAndNoiseKeyboardHelpContent.js";
 import { SignalAndNoiseScreenView } from "./view/SignalAndNoiseScreenView.js";
 
 // Require tandem to be explicit — accidental omission would break PhET-iO.
-type SignalAndNoiseScreenOptions = ScreenOptions & { tandem: Tandem };
+type SignalAndNoiseScreenOptions = ScreenOptions & { tandem: Tandem; preferences?: LockInAmplifierPreferencesModel };
 
 export class SignalAndNoiseScreen extends Screen<SignalAndNoiseModel, SignalAndNoiseScreenView> {
   public constructor(options: SignalAndNoiseScreenOptions) {
     super(
       // Model factory — called once when the screen is first shown
-      () => new SignalAndNoiseModel(),
+      () => new SignalAndNoiseModel(parameters.seed, options.preferences?.mainsFrequencyProperty),
       // View factory — receives the model instance
       (model) =>
         new SignalAndNoiseScreenView(model, {

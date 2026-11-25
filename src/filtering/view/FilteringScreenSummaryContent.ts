@@ -4,6 +4,7 @@ import { toFixedNumber } from "scenerystack/dot";
 import { StringUtils } from "scenerystack/phetcommon";
 import { ScreenSummaryContent } from "scenerystack/sim";
 import { StringManager } from "../../i18n/StringManager.js";
+import { FILTER_SETTINGS } from "../../LockInAmplifierConstants.js";
 import type { FilteringModel } from "../model/FilteringModel.js";
 
 export class FilteringScreenSummaryContent extends ScreenSummaryContent {
@@ -12,16 +13,23 @@ export class FilteringScreenSummaryContent extends ScreenSummaryContent {
     const detailsProperty = new DerivedProperty(
       [
         a11y.currentDetailsStringProperty,
+        model.xProperty,
+        model.measuredSigmaProperty,
+        a11y.measuredNoiseStringProperty,
+        a11y.predictedNoiseStringProperty,
         model.timeConstantProperty,
         model.orderProperty,
         model.predictedSigmaProperty,
         model.measurementsProperty,
       ],
-      (pattern, tau, order, sigma, measurements) =>
+      (pattern, x, measured, measuredPattern, predictedPattern, tau, order, sigma, measurements) =>
         StringUtils.fillIn(pattern, {
           tau: tau * 1000,
-          order,
-          sigma: toFixedNumber(sigma * 1000, 2),
+          x: toFixedNumber(x * 1000, 1),
+          slope: order * FILTER_SETTINGS.DB_PER_OCTAVE_PER_POLE,
+          noise: StringUtils.fillIn(Number.isFinite(measured) ? measuredPattern : predictedPattern, {
+            sigma: toFixedNumber((Number.isFinite(measured) ? measured : sigma) * 1000, 2),
+          }),
           count: measurements.length,
         }),
     );

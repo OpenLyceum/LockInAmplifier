@@ -3,7 +3,7 @@ import { DerivedProperty, NumberProperty } from "scenerystack/axon";
 import { Range } from "scenerystack/dot";
 import { type EmptySelfOptions, optionize } from "scenerystack/phet-core";
 import { StringUtils } from "scenerystack/phetcommon";
-import { AlignGroup, GridBox, HBox, Node, VBox } from "scenerystack/scenery";
+import { AlignGroup, GridBox, HBox, Node, RichText, VBox } from "scenerystack/scenery";
 import { PlayPauseButton, ResetAllButton } from "scenerystack/scenery-phet";
 import { ScreenView, type ScreenViewOptions } from "scenerystack/sim";
 import {
@@ -19,6 +19,7 @@ import {
 } from "../../common/view/instrumentControls.js";
 import {
   chartLabelFont,
+  formatValue,
   instrumentStrings,
   instrumentText,
   valueStringProperty,
@@ -31,6 +32,7 @@ import { StringManager } from "../../i18n/StringManager.js";
 import Colors from "../../LockInAmplifierColors.js";
 import {
   CHART_SETTINGS,
+  CONTROL_SETTINGS,
   P2_LAYOUT_SETTINGS as layout,
   NOISE_SETTINGS,
   SAMPLING_SETTINGS,
@@ -69,7 +71,10 @@ export class SignalAndNoiseScreenView extends ScreenView {
       title: charts.scopeStringProperty,
       xTitle: charts.timeMsStringProperty,
       yUnit: charts.voltageStringProperty,
-      accessibleDescription: a11y.scopeStringProperty,
+      accessibleDescription: new DerivedProperty(
+        [model.showSignalProperty, a11y.scopeStringProperty, a11y.scopeCleanStringProperty],
+        (shown, raw, clean) => (shown ? clean : raw),
+      ),
       windowProperty,
       showLegend: true,
       traces: [
@@ -82,14 +87,23 @@ export class SignalAndNoiseScreenView extends ScreenView {
         },
       ],
     });
-    const mainsPeak = NOISE_SETTINGS.MAINS_FREQUENCIES.NORTH_AMERICA;
     this.spectrum = new SpectrumChartNode({
       width,
       height: layout.SIGNAL_SPECTRUM_HEIGHT,
       title: charts.spectrumStringProperty,
       xTitle: charts.frequencyHzStringProperty,
       yUnit: charts.decibelVoltsStringProperty,
-      accessibleDescription: a11y.spectrumStringProperty,
+      accessibleDescription: new DerivedProperty(
+        [
+          model.showBandProperty,
+          model.frequencyProperty,
+          a11y.spectrumStringProperty,
+          a11y.spectrumBandStringProperty,
+          units.hertzStringProperty,
+        ],
+        (shown, frequency, spectrum, band, hz) =>
+          shown ? StringUtils.fillIn(band, { frequency: formatValue(hz, frequency, 0) }) : spectrum,
+      ),
       color: Colors.inputTraceColorProperty,
       magnitudes: () => model.spectrumMagnitudes,
       band: {
@@ -99,8 +113,8 @@ export class SignalAndNoiseScreenView extends ScreenView {
       },
       peaks: [
         { frequency: () => (model.amplitudeProperty.value > 0 ? model.frequencyProperty.value : null) },
-        { frequency: () => (model.mainsAmplitudeProperty.value > 0 ? mainsPeak : null) },
-        { frequency: () => (model.mainsAmplitudeProperty.value > 0 ? 3 * mainsPeak : null) },
+        { frequency: () => (model.mainsAmplitudeProperty.value > 0 ? model.mainsFrequency : null) },
+        { frequency: () => (model.mainsAmplitudeProperty.value > 0 ? 3 * model.mainsFrequency : null) },
       ],
       waitingMessage: true,
       calculateNoiseFloor: true,
@@ -225,9 +239,11 @@ export class SignalAndNoiseScreenView extends ScreenView {
               accessibleName: a11y.controls.mainsStringProperty,
             },
           ),
-          instrumentText(controls.noiseNoteStringProperty, {
+          new RichText(controls.noiseNoteStringProperty, {
             font: chartLabelFont,
             fill: Colors.mutedTextColorProperty,
+            lineWrap: layout.CONTROL_WIDTH - 2 * CONTROL_SETTINGS.ACCORDION_MARGIN,
+            accessibleParagraph: controls.noiseNoteStringProperty,
           }),
         ],
       }),

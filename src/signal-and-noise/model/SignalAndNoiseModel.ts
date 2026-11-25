@@ -14,6 +14,7 @@ import {
   SIGNAL_NOISE_SETTINGS,
   SPECTRUM_SETTINGS,
 } from "../../LockInAmplifierConstants.js";
+import type { LockInAmplifierPreferencesModel } from "../../preferences/LockInAmplifierPreferencesModel.js";
 
 const settings = SIGNAL_NOISE_SETTINGS;
 const { RECORD_LENGTHS, AVERAGE_COUNTS } = SPECTRUM_SETTINGS;
@@ -79,11 +80,14 @@ class SpectrumAverage {
   }
 }
 
+type MainsFrequencyProperty = LockInAmplifierPreferencesModel["mainsFrequencyProperty"];
+
 export class SignalAndNoiseModel implements TModel {
   public readonly timer = new TimeModel({ initiallyPlaying: true });
   private readonly clock = new SampleClock();
   private readonly signal = new SignalSource();
-  private readonly noise = new NoiseSource();
+  private readonly unlinkMainsFrequency?: () => void;
+  private readonly noise: NoiseSource;
   private sampleCount = 0;
 
   /** Synchronized histories used by the triggered scope. */
@@ -120,30 +124,10 @@ export class SignalAndNoiseModel implements TModel {
     [this.amplitudeProperty],
     (amplitude) => amplitude / Math.SQRT2,
   );
-  private readonly noiseSetup = Multilink.multilink(
-    [this.densityProperty, this.pinkCornerProperty, this.mainsAmplitudeProperty],
-    (density, corner, mains) => {
-      this.noise.whiteDensity = density;
-      this.noise.pinkCorner = pinkCorners.find((frequency) => frequency === corner) ?? NOISE_SETTINGS.PINK_CORNERS.OFF;
-      this.noise.mainsAmplitude = mains;
-    },
-  );
-  public readonly noiseRmsProperty = new DerivedProperty(
-    [this.densityProperty, this.pinkCornerProperty, this.mainsAmplitudeProperty],
-    () => this.noise.stationaryRms(),
-  );
-  public readonly wideSnrProperty = new DerivedProperty([this.signalRmsProperty, this.noiseRmsProperty], snrDb);
-  public readonly bandSnrProperty = new DerivedProperty(
-    [
-      this.signalRmsProperty,
-      this.frequencyProperty,
-      this.densityProperty,
-      this.pinkCornerProperty,
-      this.bandwidthProperty,
-    ],
-    (rms, frequency, _density, _corner, bandwidth) =>
-      snrDb(rms, this.noise.densityAt(frequency) * Math.sqrt(bandwidth)),
-  );
+  private readonly noiseSetup: { dispose: () => void };
+  public readonly noiseRmsProperty: TReadOnlyProperty<number> & { dispose: () => void };
+  public readonly wideSnrProperty: TReadOnlyProperty<number> & { dispose: () => void };
+  public readonly bandSnrProperty: TReadOnlyProperty<number> & { dispose: () => void };
 
   private spectrum = new SpectrumAverage(settings.RECORD_LENGTH, settings.AVERAGES);
   private readonly completedRecordsProperty = new NumberProperty(0);
@@ -165,6 +149,47 @@ export class SignalAndNoiseModel implements TModel {
     this.mainsAmplitudeProperty,
   ] as const;
   private readonly spectrumInvalidation = Multilink.lazyMultilink(this.inputProperties, () => this.clearSpectrum());
+
+  public constructor(seed: number = NOISE_SETTINGS.DEFAULT_SEED, mainsFrequencyProperty?: MainsFrequencyProperty) {
+    this.noise = new NoiseSource({ seed });
+    this.noiseSetup = Multilink.multilink(
+      [this.densityProperty, this.pinkCornerProperty, this.mainsAmplitudeProperty],
+      (density, corner, mains) => {
+        this.noise.whiteDensity = density;
+        this.noise.pinkCorner =
+          pinkCorners.find((frequency) => frequency === corner) ?? NOISE_SETTINGS.PINK_CORNERS.OFF;
+        this.noise.mainsAmplitude = mains;
+      },
+    );
+    this.noiseRmsProperty = new DerivedProperty(
+      [this.densityProperty, this.pinkCornerProperty, this.mainsAmplitudeProperty],
+      () => this.noise.stationaryRms(),
+    );
+    this.wideSnrProperty = new DerivedProperty([this.signalRmsProperty, this.noiseRmsProperty], snrDb);
+    this.bandSnrProperty = new DerivedProperty(
+      [
+        this.signalRmsProperty,
+        this.frequencyProperty,
+        this.densityProperty,
+        this.pinkCornerProperty,
+        this.bandwidthProperty,
+      ],
+      (rms, frequency, _density, _corner, bandwidth) =>
+        snrDb(rms, this.noise.densityAt(frequency) * Math.sqrt(bandwidth)),
+    );
+    if (mainsFrequencyProperty) {
+      const update = (frequency: MainsFrequencyProperty["value"]) => {
+        this.noise.mainsFrequency = frequency;
+        this.clearSpectrum();
+      };
+      mainsFrequencyProperty.link(update);
+      this.unlinkMainsFrequency = () => mainsFrequencyProperty.unlink(update);
+    }
+  }
+
+  public get mainsFrequency(): MainsFrequencyProperty["value"] {
+    return this.noise.mainsFrequency;
+  }
 
   private clearSpectrum(): void {
     this.spectrum.reset();
@@ -223,6 +248,7 @@ export class SignalAndNoiseModel implements TModel {
   }
 
   public dispose(): void {
+    this.unlinkMainsFrequency?.();
     this.spectrumInvalidation.dispose();
     this.spectrumSetup.dispose();
     this.completedRecordsProperty.dispose();

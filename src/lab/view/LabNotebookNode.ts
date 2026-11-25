@@ -55,6 +55,9 @@ export class LabNotebookNode extends Node {
       indicatorProperty: this.showRevealProperty,
       listener: () => {
         this.showRevealProperty.value = !this.showRevealProperty.value;
+        if (this.showRevealProperty.value) {
+          revealButton.addAccessibleResponse(labA11y.sampleRevealedStringProperty);
+        }
       },
     });
     const responseLabelProperty = new DerivedProperty(

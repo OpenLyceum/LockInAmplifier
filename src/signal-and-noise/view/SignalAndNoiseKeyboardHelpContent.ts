@@ -1,6 +1,7 @@
 /** Keyboard guidance for the sliders and playback on the SignalAndNoise screen. */
 import {
   BasicActionsKeyboardHelpSection,
+  ComboBoxKeyboardHelpSection,
   SliderControlsKeyboardHelpSection,
   TimeControlsKeyboardHelpSection,
   TwoColumnKeyboardHelpContent,
@@ -9,8 +10,8 @@ import {
 export class SignalAndNoiseKeyboardHelpContent extends TwoColumnKeyboardHelpContent {
   public constructor() {
     super(
-      [new SliderControlsKeyboardHelpSection()],
-      [new TimeControlsKeyboardHelpSection(), new BasicActionsKeyboardHelpSection()],
+      [new SliderControlsKeyboardHelpSection({ includeSmallerStepsRow: false }), new ComboBoxKeyboardHelpSection()],
+      [new TimeControlsKeyboardHelpSection(), new BasicActionsKeyboardHelpSection({ withCheckboxContent: true })],
     );
   }
 }

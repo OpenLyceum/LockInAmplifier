@@ -21,6 +21,7 @@ import { TimeModel } from "../../common/TimeModel.js";
 import {
   FILTER_SETTINGS,
   MIXING_SETTINGS,
+  NOISE_SETTINGS,
   SAMPLING_SETTINGS,
   SPECTRUM_SETTINGS,
 } from "../../LockInAmplifierConstants.js";
@@ -35,7 +36,7 @@ export class MixingModel implements TModel {
   public readonly timer = new TimeModel({ initiallyPlaying: true });
   private readonly clock = new SampleClock();
   private readonly signal = new SignalSource();
-  private readonly noise = new NoiseSource();
+  private readonly noise: NoiseSource;
   private readonly reference = new ReferenceOscillator(this.signal, { frequency: settings.FREQUENCY });
   private readonly filters = {
     1: new Demodulator({ phaseOnly: true, order: 1 }),
@@ -108,6 +109,10 @@ export class MixingModel implements TModel {
   /** Rolling mean of the unfiltered product in volts. */
   public get productMean(): number {
     return this.productStats.mean;
+  }
+
+  public constructor(seed: number = NOISE_SETTINGS.DEFAULT_SEED) {
+    this.noise = new NoiseSource({ seed });
   }
 
   public step(dt: number): void {

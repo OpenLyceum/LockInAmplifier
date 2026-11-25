@@ -13,6 +13,7 @@ import { SignalSource } from "../../common/model/SignalSource.js";
 import { TimeModel } from "../../common/TimeModel.js";
 import {
   FILTER_SETTINGS,
+  NOISE_SETTINGS,
   SAMPLING_SETTINGS,
   SIGNAL_NOISE_SETTINGS,
   SOURCE_SETTINGS,
@@ -64,7 +65,7 @@ export class PhaseDetectionModel implements TModel {
   private readonly clock = new SampleClock();
   private readonly source = new SignalSource({ amplitude: settings.AMPLITUDE, phase: settings.SIGNAL_PHASE });
   private readonly reference = new ReferenceOscillator(this.source, { locked: false });
-  private readonly noise = new NoiseSource({ whiteDensity: settings.DENSITY });
+  private readonly noise: NoiseSource;
   private readonly phaseRandom = new Random({ seed: settings.HIDDEN_PHASE_SEED });
   private readonly xDecimator = new Decimator();
   private readonly yDecimator = new Decimator();
@@ -74,7 +75,8 @@ export class PhaseDetectionModel implements TModel {
   private sinReference = 0;
   private relativeCarrierAngle = 0;
 
-  public constructor() {
+  public constructor(seed: number = NOISE_SETTINGS.DEFAULT_SEED) {
+    this.noise = new NoiseSource({ seed, whiteDensity: settings.DENSITY });
     this.amplitudeProperty.link((amplitude) => {
       this.source.amplitude = amplitude;
     });

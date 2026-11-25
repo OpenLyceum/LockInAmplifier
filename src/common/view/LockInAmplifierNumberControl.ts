@@ -131,6 +131,7 @@ export class LockInAmplifierNumberControl extends NumberControl {
             thumbStroke: Colors.chartBorderColorProperty,
             thumbCenterLineStroke: Colors.chartBackgroundColorProperty,
             pdomCreateAriaValueText: format,
+            pdomDependencies: [patternProperty, ...extraFormattingDependencies],
             keyboardStep: delta,
             shiftKeyboardStep: delta,
           },

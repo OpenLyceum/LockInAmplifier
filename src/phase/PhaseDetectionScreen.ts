@@ -15,6 +15,7 @@ import { Screen } from "scenerystack/sim";
 import type { Tandem } from "scenerystack/tandem";
 import { createPhaseDetectionIcon } from "../common/LockInAmplifierScreenIcons.js";
 import LockInAmplifierColors from "../LockInAmplifierColors.js";
+import parameters from "../preferences/lockInAmplifierQueryParameters.js";
 import { PhaseDetectionModel } from "./model/PhaseDetectionModel.js";
 import { PhaseDetectionKeyboardHelpContent } from "./view/PhaseDetectionKeyboardHelpContent.js";
 import { PhaseDetectionScreenView } from "./view/PhaseDetectionScreenView.js";
@@ -26,7 +27,7 @@ export class PhaseDetectionScreen extends Screen<PhaseDetectionModel, PhaseDetec
   public constructor(options: PhaseDetectionScreenOptions) {
     super(
       // Model factory — called once when the screen is first shown
-      () => new PhaseDetectionModel(),
+      () => new PhaseDetectionModel(parameters.seed),
       // View factory — receives the model instance
       (model) =>
         new PhaseDetectionScreenView(model, {

@@ -1,11 +1,16 @@
 /** A bench lock-in with detented switches, live centre-zero meters and dedicated action keys. */
 import { DerivedProperty, type TReadOnlyProperty } from "scenerystack/axon";
 import { clamp } from "scenerystack/dot";
+import { StringUtils } from "scenerystack/phetcommon";
 import { AlignBox, AlignGroup, Circle, HBox, HStrut, Line, Node, Rectangle, VBox } from "scenerystack/scenery";
 import { PhetFont } from "scenerystack/scenery-phet";
+import { Utterance } from "scenerystack/utterance-queue";
 import { PanelButton } from "../../common/controls/PanelButton.js";
+import { LockInAmplifierHotkeyData as keys } from "../../common/LockInAmplifierHotkeyData.js";
 import { LockInAmplifierPanel } from "../../common/LockInAmplifierPanel.js";
+import { DisposalBag } from "../../common/view/DisposalBag.js";
 import { numberChoices } from "../../common/view/instrumentControls.js";
+import { bindInstrumentAction } from "../../common/view/instrumentKeyboard.js";
 import { formatValue, instrumentStrings, instrumentText } from "../../common/view/instrumentText.js";
 import Colors from "../../LockInAmplifierColors.js";
 import {
@@ -256,24 +261,55 @@ export class LockInFrontPanelNode extends Node {
       layout.DISPLAY_KNOB_RADIUS,
     );
 
+    const applyAutoPhase = () => {
+      model.autoPhase();
+      autoPhase.addAccessibleResponse(
+        StringUtils.fillIn(labA11y.autoPhaseResultStringProperty.value, {
+          phase: formatValue(units.degreesStringProperty.value, model.phaseProperty.value * degreesPerRadian, 1),
+        }),
+      );
+    };
     const autoPhase = key(
       lab.autoPhaseStringProperty,
       names.autoPhaseStringProperty,
-      () => model.autoPhase(),
+      applyAutoPhase,
       availableProperty,
     );
+    bindInstrumentAction(autoPhase, keys.autoPhase, applyAutoPhase);
     const autoRange = key(
       lab.autoRangeStringProperty,
       names.autoRangeStringProperty,
       () => model.autoRange(),
       availableProperty,
     );
-    const record = key(
-      lab.recordStringProperty,
-      names.recordStringProperty,
-      () => model.record(),
-      recordEnabledProperty,
+    const recordRow = () => {
+      const count = model.rowsProperty.value.length;
+      model.record();
+      if (model.rowsProperty.value.length > count) {
+        record.addAccessibleResponse(StringUtils.fillIn(labA11y.rowRecordedStringProperty.value, { count: count + 1 }));
+      }
+    };
+    const record = key(lab.recordStringProperty, names.recordStringProperty, recordRow, recordEnabledProperty);
+    bindInstrumentAction(record, keys.record, recordRow);
+
+    const responses = new DisposalBag();
+    const announceOverload = (
+      property: TReadOnlyProperty<boolean>,
+      active: TReadOnlyProperty<string>,
+      cleared: TReadOnlyProperty<string>,
+    ) => {
+      const on = new Utterance({ alert: active });
+      const off = new Utterance({ alert: cleared });
+      responses.own(on, off);
+      responses.lazyLink(property, (overload) => this.addAccessibleResponse(overload ? on : off));
+    };
+    announceOverload(
+      model.inputOverloadProperty,
+      labA11y.inputOverloadStringProperty,
+      labA11y.inputClearedStringProperty,
     );
+    announceOverload(outputOverloadProperty, labA11y.outputOverloadStringProperty, labA11y.outputClearedStringProperty);
+    this.disposeEmitter.addListener(() => responses.dispose());
 
     const [inputWidth, referenceWidth, filterWidth, displayWidth] = layout.FRONT_SECTION_WIDTHS;
     const inputGroup = group(lab.inputStringProperty, inputWidth, [

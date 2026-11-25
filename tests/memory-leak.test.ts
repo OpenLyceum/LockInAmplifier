@@ -31,24 +31,42 @@ import { StripChartNode } from "../src/common/view/StripChartNode.js";
 import { TimeConstantControl } from "../src/common/view/TimeConstantControl.js";
 import { FilteringModel } from "../src/filtering/model/FilteringModel.js";
 import { BodePlot, HistogramNode, NoiseScalingPlot } from "../src/filtering/view/FilteringPlots.js";
+import { FilteringScreenSummaryContent } from "../src/filtering/view/FilteringScreenSummaryContent.js";
 import Colors from "../src/LockInAmplifierColors.js";
+import { NOISE_SETTINGS } from "../src/LockInAmplifierConstants.js";
 import { VirtualExperimentModel } from "../src/lab/model/VirtualExperimentModel.js";
+import { ResponsePlot } from "../src/lab/view/LabResponsePlots.js";
+import { VirtualExperimentScreenSummaryContent } from "../src/lab/view/VirtualExperimentScreenSummaryContent.js";
 import { MixingModel } from "../src/mixing/model/MixingModel.js";
+import { MixingScreenSummaryContent } from "../src/mixing/view/MixingScreenSummaryContent.js";
 import { PhaseDetectionModel } from "../src/phase/model/PhaseDetectionModel.js";
+import { PhaseDetectionScreenSummaryContent } from "../src/phase/view/PhaseDetectionScreenSummaryContent.js";
 import { PhasorPlane } from "../src/phase/view/PhasorPlane.js";
 import { RotaryKnob } from "../src/phase/view/RotaryKnob.js";
 import { SignalAndNoiseModel } from "../src/signal-and-noise/model/SignalAndNoiseModel.js";
+import { SignalAndNoiseScreenSummaryContent } from "../src/signal-and-noise/view/SignalAndNoiseScreenSummaryContent.js";
 import { describeDisposalLeaks } from "./helpers/memoryLeak.js";
+
+const { EUROPE, NORTH_AMERICA } = NOISE_SETTINGS.MAINS_FREQUENCIES;
+const mainsFrequencyProperty = new Property<typeof EUROPE | typeof NORTH_AMERICA>(NORTH_AMERICA);
 
 describeDisposalLeaks([
   { name: "ReferenceOscillator", create: () => new ReferenceOscillator(new SignalSource()) },
   { name: "SampleClock", create: () => new SampleClock() },
   { name: "TimeModel", create: () => new TimeModel(), idempotentDispose: true },
-  { name: "SignalAndNoiseModel", create: () => new SignalAndNoiseModel() },
+  {
+    name: "SignalAndNoiseModel",
+    create: () => new SignalAndNoiseModel(NOISE_SETTINGS.DEFAULT_SEED, mainsFrequencyProperty),
+    keepAlive: () => [mainsFrequencyProperty],
+  },
   { name: "MixingModel", create: () => new MixingModel() },
   { name: "FilteringModel", create: () => new FilteringModel() },
   { name: "PhaseDetectionModel", create: () => new PhaseDetectionModel() },
-  { name: "VirtualExperimentModel", create: () => new VirtualExperimentModel() },
+  {
+    name: "VirtualExperimentModel",
+    create: () => new VirtualExperimentModel(NOISE_SETTINGS.DEFAULT_SEED, mainsFrequencyProperty),
+    keepAlive: () => [mainsFrequencyProperty],
+  },
 ]);
 
 const { charts, controls, lab, units } = instrumentStrings;
@@ -199,10 +217,59 @@ describeDisposalLeaks([
     keepAlive: () => [phaseModel, dualProperty],
   },
   {
+    name: "ResponsePlot",
+    create: () => {
+      const node = new ResponsePlot(
+        320,
+        lab.frequencyStringProperty,
+        lab.harmonicStringProperty,
+        Colors.guideColorProperty,
+      );
+      node.draw([], true);
+      return node;
+    },
+  },
+  {
     name: "RotaryKnob",
     create: () =>
       new RotaryKnob(phaseModel.referencePhaseProperty, controls.phaseStringProperty, controls.phaseStringProperty),
     keepAlive: () => [phaseModel],
+  },
+]);
+
+// Each summary must unlink from its still-live screen model when disposed.
+const summaryModels = {
+  filtering: new FilteringModel(),
+  mixing: new MixingModel(),
+  phase: new PhaseDetectionModel(),
+  signalandnoise: new SignalAndNoiseModel(),
+  lab: new VirtualExperimentModel(),
+};
+describeDisposalLeaks([
+  {
+    name: "FilteringScreenSummaryContent",
+    create: () => new FilteringScreenSummaryContent(summaryModels.filtering),
+    keepAlive: () => [summaryModels.filtering],
+  },
+  {
+    name: "MixingScreenSummaryContent",
+    create: () => new MixingScreenSummaryContent(summaryModels.mixing),
+    keepAlive: () => [summaryModels.mixing],
+  },
+  {
+    name: "PhaseDetectionScreenSummaryContent",
+    create: () => new PhaseDetectionScreenSummaryContent(summaryModels.phase),
+    keepAlive: () => [summaryModels.phase],
+  },
+  {
+    name: "SignalAndNoiseScreenSummaryContent",
+    create: () => new SignalAndNoiseScreenSummaryContent(summaryModels.signalandnoise),
+    keepAlive: () => [summaryModels.signalandnoise],
+  },
+  {
+    name: "VirtualExperimentScreenSummaryContent",
+    create: () => new VirtualExperimentScreenSummaryContent(summaryModels.lab),
+    keepAlive: () => [summaryModels.lab],
   },
 ]);
 

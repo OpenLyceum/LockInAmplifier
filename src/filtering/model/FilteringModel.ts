@@ -23,6 +23,7 @@ import { TimeModel } from "../../common/TimeModel.js";
 import {
   CHART_SETTINGS,
   FILTER_SETTINGS,
+  NOISE_SETTINGS,
   SAMPLING_SETTINGS,
   SIGNAL_NOISE_SETTINGS,
   FILTERING_SETTINGS as settings,
@@ -85,7 +86,7 @@ export class FilteringModel implements TModel {
   private readonly clock = new SampleClock();
   private readonly source = new SignalSource({ amplitude: settings.AMPLITUDE });
   private readonly reference = new ReferenceOscillator(this.source);
-  private readonly noise = new NoiseSource({ whiteDensity: settings.DENSITY });
+  private readonly noise: NoiseSource;
   private readonly decimator = new Decimator();
   private readonly histogramScratch = new Float64Array(statsCapacity(Math.max(...FILTER_SETTINGS.TIME_CONSTANTS)));
   private demodulator = this.createDetector();
@@ -95,7 +96,8 @@ export class FilteringModel implements TModel {
   private sampleIndex = 0;
   private statCount = 0;
 
-  public constructor() {
+  public constructor(seed: number = NOISE_SETTINGS.DEFAULT_SEED) {
+    this.noise = new NoiseSource({ seed, whiteDensity: settings.DENSITY });
     this.demodulator.reset(settings.AMPLITUDE);
     this.amplitudeProperty.lazyLink((value) => {
       this.source.amplitude = value;

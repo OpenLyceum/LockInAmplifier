@@ -1,6 +1,7 @@
 /** Output geometry, signal and reference controls, and a common time history. */
 import { DerivedProperty, Multilink, NumberProperty, type TReadOnlyProperty } from "scenerystack/axon";
 import { Shape } from "scenerystack/kite";
+import { StringUtils } from "scenerystack/phetcommon";
 import { AlignBox, AlignGroup, GridBox, HBox, Node, Path, RichText, VBox } from "scenerystack/scenery";
 import { PlayPauseButton, ResetAllButton } from "scenerystack/scenery-phet";
 import { ScreenView, type ScreenViewOptions } from "scenerystack/sim";
@@ -11,10 +12,13 @@ import {
   FLAT_RESET_ALL_BUTTON_OPTIONS,
   LIGHT_SURFACE_TEXT_FILL,
 } from "../../common/LockInAmplifierButtonOptions.js";
+import { LockInAmplifierHotkeyData as keys } from "../../common/LockInAmplifierHotkeyData.js";
 import { LockInAmplifierPanel } from "../../common/LockInAmplifierPanel.js";
 import { instrumentCheckbox } from "../../common/view/instrumentControls.js";
+import { bindInstrumentAction } from "../../common/view/instrumentKeyboard.js";
 import {
   chartLabelFont,
+  formatValue,
   instrumentFont,
   instrumentHeadingFont,
   instrumentStrings,
@@ -78,7 +82,10 @@ export class PhaseDetectionScreenView extends ScreenView {
         { history: model.yHistory, color: Colors.quadratureTraceColorProperty, visibleProperty: dualProperty },
         { history: model.rHistory, color: Colors.productTraceColorProperty, visibleProperty: dualProperty },
       ],
-      accessibleDescription: a11y.stripStringProperty,
+      accessibleDescription: new DerivedProperty(
+        [dualProperty, a11y.stripStringProperty, a11y.stripSingleStringProperty],
+        (dual, many, one) => (dual ? many : one),
+      ),
     });
     const noteWidth = plotWidth - this.plane.width - layout.GAP - 2 * layout.PANEL_INSET;
     const heading = (label: TReadOnlyProperty<string>) => instrumentText(label, { font: instrumentHeadingFont });
@@ -173,12 +180,26 @@ export class PhaseDetectionScreenView extends ScreenView {
       0,
       degreesPerRadian,
     );
+    const applyAutoPhase = () => {
+      model.autoPhase();
+      autoPhase.addAccessibleResponse(
+        StringUtils.fillIn(a11y.autoPhaseResultStringProperty.value, {
+          phase: formatValue(
+            units.degreesStringProperty.value,
+            model.referencePhaseProperty.value * degreesPerRadian,
+            1,
+          ),
+          y: formatValue(units.millivoltsStringProperty.value, model.yProperty.value * 1000, 1),
+        }),
+      );
+    };
     const autoPhase = new RectangularPushButton({
       ...FLAT_PANEL_PUSH_BUTTON_OPTIONS,
       content: instrumentText(strings.autoPhaseStringProperty, { fill: LIGHT_SURFACE_TEXT_FILL }),
       accessibleName: a11y.controls.autoPhaseStringProperty,
-      listener: () => model.autoPhase(),
+      listener: applyAutoPhase,
     });
+    bindInstrumentAction(autoPhase, keys.autoPhase, applyAutoPhase);
     const mode = new ABSwitch(
       model.modeProperty,
       "single",

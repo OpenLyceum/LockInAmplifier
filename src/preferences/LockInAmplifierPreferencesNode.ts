@@ -1,55 +1,33 @@
-/**
- * LockInAmplifierPreferencesNode.ts
- *
- * Custom preferences UI shown in Preferences → Simulation. Add controls here
- * when the sim gains sim-specific preferences. The empty shell still wraps content
- * in LockInAmplifierPanel so the shared panel toolkit stays reachable.
- */
-import { VBox } from "scenerystack/scenery";
+import { PatternStringProperty } from "scenerystack/axon";
+import { Text, VBox } from "scenerystack/scenery";
+import { AquaRadioButtonGroup } from "scenerystack/sun";
 import type { Tandem } from "scenerystack/tandem";
-import { LockInAmplifierPanel } from "../common/LockInAmplifierPanel.js";
+import { instrumentFont, instrumentStrings } from "../common/view/instrumentText.js";
+import { StringManager } from "../i18n/StringManager.js";
+import Colors from "../LockInAmplifierColors.js";
+import { CONTROL_SETTINGS, NOISE_SETTINGS } from "../LockInAmplifierConstants.js";
 import LockInAmplifierNamespace from "../LockInAmplifierNamespace.js";
 import type { LockInAmplifierPreferencesModel } from "./LockInAmplifierPreferencesModel.js";
 
 export class LockInAmplifierPreferencesNode extends VBox {
-  public constructor(_preferencesModel: LockInAmplifierPreferencesModel, _tandem?: Tandem) {
-    // Pattern for a preference control (skill: scenerystack-preferences). The dialog is
-    // always white, so use the controlSurface colors, not textColorProperty.
-    //
-    //   const prefStrings = StringManager.getInstance().getPreferences();
-    //   const showGridCheckbox = new Checkbox(
-    //     preferencesModel.showGridProperty,
-    //     new Text(prefStrings.showGridStringProperty, {
-    //       font: new PhetFont(14),
-    //       fill: LockInAmplifierColors.controlSurfaceTextColorProperty,
-    //     }),
-    //     {
-    //       // Shared slider / NumberControl / checkbox bundles live in LockInAmplifierControlOptions.ts:
-    //       // copy the template's src/common/*ControlOptions.ts and apply the LockInAmplifier prefix.
-    //       checkboxColor: LockInAmplifierColors.controlSurfaceTextColorProperty,
-    //       checkboxColorBackground: LockInAmplifierColors.controlSurfaceColorProperty,
-    //       ...(tandem && { tandem: tandem.createTandem("showGridCheckbox") }),
-    //     },
-    //   );
-    //
-    // Add showGridCheckbox to the content children below.
-    const content = new VBox({
-      align: "left",
-      spacing: 12,
-      children: [],
-    });
-    // Transparent / borderless so the Preferences dialog stays visually empty.
-    const panel = new LockInAmplifierPanel(content, {
-      fill: "transparent",
-      stroke: null,
-      xMargin: 0,
-      yMargin: 0,
-    });
-    super({
-      align: "left",
-      spacing: 12,
-      children: [panel],
-    });
+  public constructor(model: LockInAmplifierPreferencesModel, tandem?: Tandem) {
+    const title = StringManager.getInstance().getPreferences().mainsFrequencyStringProperty;
+    const textOptions = { font: instrumentFont, fill: Colors.controlSurfaceTextColorProperty };
+    const group = new AquaRadioButtonGroup(
+      model.mainsFrequencyProperty,
+      Object.values(NOISE_SETTINGS.MAINS_FREQUENCIES)
+        .sort((a, b) => a - b)
+        .map((value) => {
+          const label = new PatternStringProperty(instrumentStrings.units.hertzStringProperty, { value });
+          return { value, options: { accessibleName: label }, createNode: () => new Text(label, textOptions) };
+        }),
+      {
+        accessibleName: title,
+        orientation: "horizontal",
+        ...(tandem && { tandem: tandem.createTandem("mainsFrequencyRadioButtonGroup") }),
+      },
+    );
+    super({ align: "left", spacing: CONTROL_SETTINGS.CONTENT_GAP, children: [new Text(title, textOptions), group] });
   }
 }
 

@@ -1,11 +1,11 @@
 /** Label and right-aligned value badge for compact instrument readouts. */
-import type { TReadOnlyProperty } from "scenerystack/axon";
+import { PatternStringProperty, type TReadOnlyProperty } from "scenerystack/axon";
 import { AlignBox, HBox } from "scenerystack/scenery";
 import Colors from "../../LockInAmplifierColors.js";
 import { CONTROL_SETTINGS as metrics } from "../../LockInAmplifierConstants.js";
 import { LockInAmplifierPanel } from "../LockInAmplifierPanel.js";
 import { DisposalBag } from "./DisposalBag.js";
-import { chartLabelFont, instrumentText } from "./instrumentText.js";
+import { chartLabelFont, instrumentStrings, instrumentText } from "./instrumentText.js";
 
 export class ReadoutRow extends HBox {
   private readonly bag = new DisposalBag();
@@ -36,8 +36,12 @@ export class ReadoutRow extends HBox {
       xAlign: "left",
       preferredWidth: width - badgeWidth - metrics.CONTENT_GAP,
     });
-    super({ spacing: metrics.CONTENT_GAP, children: [aligned, badge] });
-    this.bag.own(badge, aligned, label, value);
+    const description = new PatternStringProperty(instrumentStrings.a11y.readoutStringProperty, {
+      label: labelProperty,
+      value: valueProperty,
+    });
+    super({ spacing: metrics.CONTENT_GAP, children: [aligned, badge], accessibleParagraph: description });
+    this.bag.own(description, badge, aligned, label, value);
   }
 
   public override dispose(): void {

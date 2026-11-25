@@ -33,13 +33,18 @@ export function instrumentCombo<T>(
   listParent: Node,
   accessibleName: TReadOnlyProperty<string>,
   listPosition: "above" | "below" = "below",
+  maxLabelWidth?: number,
 ): ComboBox<T> {
   return new ComboBox(
     property,
     choices.map(({ value, labelProperty }) => ({
       value,
       accessibleName: labelProperty,
-      createNode: () => instrumentText(labelProperty, { fill: Colors.controlSurfaceTextColorProperty }),
+      createNode: () =>
+        instrumentText(labelProperty, {
+          fill: Colors.controlSurfaceTextColorProperty,
+          ...(maxLabelWidth !== undefined ? { maxWidth: maxLabelWidth } : {}),
+        }),
     })),
     listParent,
     {
@@ -68,7 +73,7 @@ export function numberChoices(
 }
 
 export function controlRow(labelProperty: TReadOnlyProperty<string>, control: Node): HBox {
-  const label = new AlignBox(instrumentText(labelProperty), {
+  const label = new AlignBox(instrumentText(labelProperty, { maxWidth: metrics.LABEL_WIDTH }), {
     xAlign: "left",
     preferredWidth: metrics.LABEL_WIDTH,
   });

@@ -48,6 +48,7 @@ type RotaryKnobOptions = SelfOptions &
     | "shiftKeyboardStep"
     | "pageKeyboardStep"
     | "pdomCreateAriaValueText"
+    | "pdomDependencies"
   >;
 
 // AccessibleSlider trait mixed into Node; options are the first constructor arg.
