@@ -1,41 +1,60 @@
-/**
- * VirtualExperimentScreenSummaryContent.ts
- *
- * The accessible screen summary read by screen readers (SceneryStack's
- * Interactive Description). It appears at the top of the parallel DOM and gives
- * a non-visual user a way to orient themselves and to re-read the simulation's
- * current state at any time.
- *
- * A summary has four regions (all optional, but provide at least the first
- * three in every sim for consistency across OpenLyceum):
- *   - playAreaContent       — what the play area contains
- *   - controlAreaContent    — what the controls do
- *   - currentDetailsContent — a LIVE paragraph describing current state
- *   - interactionHintContent — a short hint on how to get started
- *
- * ── Making "current details" live ─────────────────────────────────────────────
- * The template has no model state, so currentDetails is a static string. In a
- * real sim, build a DerivedProperty over the relevant model Properties and pass
- * it as `currentDetailsContent` so the paragraph updates as the sim runs.
- * See LunarLander/src/.../LunarLanderScreenSummaryContent.ts for the pattern.
- * If that DerivedProperty (or any Multilink) is owned by a short-lived object,
- * dispose it on teardown — see the commented dispose() stub in VirtualExperimentScreenView.
- */
+/** Screen-reader orientation and live bench status. */
+import { DerivedProperty } from "scenerystack/axon";
+import { toFixed } from "scenerystack/dot";
+import { StringUtils } from "scenerystack/phetcommon";
 import { ScreenSummaryContent } from "scenerystack/sim";
-import { StringManager } from "../../i18n/StringManager.js";
 import type { VirtualExperimentModel } from "../model/VirtualExperimentModel.js";
+import { labA11y, scenarioLabels } from "./labText.js";
 
 export class VirtualExperimentScreenSummaryContent extends ScreenSummaryContent {
-  // `model` is unused in the template but kept in the signature so real sims can
-  // derive a live currentDetailsContent from it without changing call sites.
-  public constructor(_model: VirtualExperimentModel) {
-    const a11y = StringManager.getInstance().getVirtualExperimentA11yStrings();
-
+  public constructor(model: VirtualExperimentModel) {
+    const summary = labA11y.screenSummary;
+    const currentDetailsProperty = DerivedProperty.deriveAny(
+      [
+        model.scenarioProperty,
+        model.rowsProperty,
+        model.timer.timeProperty,
+        model.referenceUnlockProperty,
+        model.inputOverloadProperty,
+        model.sensitivityProperty,
+        ...Object.values(scenarioLabels),
+        labA11y.currentDetailsStringProperty,
+        labA11y.readingStringProperty,
+        labA11y.unlockStringProperty,
+        labA11y.inputOverloadStringProperty,
+        labA11y.outputOverloadStringProperty,
+      ],
+      () => {
+        const { x, y } = model.demodulator;
+        const unlocked = model.referenceUnlockProperty.value;
+        const reading = unlocked
+          ? labA11y.unlockStringProperty.value
+          : StringUtils.fillIn(labA11y.readingStringProperty.value, {
+              frequency: toFixed(model.reference.frequencyHz, 1),
+              x: x.toPrecision(3),
+              y: y.toPrecision(3),
+            });
+        const status = [
+          StringUtils.fillIn(labA11y.currentDetailsStringProperty.value, {
+            scenario: scenarioLabels[model.scenarioProperty.value].value,
+            count: model.rowsProperty.value.length,
+            reading,
+          }),
+        ];
+        if (model.inputOverloadProperty.value) {
+          status.push(labA11y.inputOverloadStringProperty.value);
+        }
+        if (!unlocked && Math.abs(x) > model.sensitivityProperty.value) {
+          status.push(labA11y.outputOverloadStringProperty.value);
+        }
+        return status.join(" ");
+      },
+    );
     super({
-      playAreaContent: a11y.screenSummary.playAreaStringProperty,
-      controlAreaContent: a11y.screenSummary.controlAreaStringProperty,
-      currentDetailsContent: a11y.currentDetailsStringProperty,
-      interactionHintContent: a11y.screenSummary.interactionHintStringProperty,
+      playAreaContent: summary.playAreaStringProperty,
+      controlAreaContent: summary.controlAreaStringProperty,
+      currentDetailsContent: currentDetailsProperty,
+      interactionHintContent: summary.interactionHintStringProperty,
     });
   }
 }

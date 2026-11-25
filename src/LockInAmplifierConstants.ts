@@ -21,7 +21,7 @@ import LockInAmplifierNamespace from "./LockInAmplifierNamespace.js";
 // ── Layout / chrome (screen pixels) ───────────────────────────────────────────
 
 /** Margin between the screen edge and edge-anchored controls (e.g. Reset All). */
-export const SCREEN_VIEW_MARGIN = 20;
+const SCREEN_VIEW_MARGIN = 20;
 
 /**
  * Corner radius shared by control panels and dialogs.
@@ -300,4 +300,125 @@ export const P3_LAYOUT_SETTINGS = {
   RESET_RADIUS: P2_LAYOUT_SETTINGS.RESET_RADIUS,
   PANEL_INSET: 12,
   CONTROL_DELTA: 0.005, // V
+} as const;
+
+export const LAB_INSTRUMENT_SETTINGS = {
+  SENSITIVITIES: [
+    1e-6, 2e-6, 5e-6, 1e-5, 2e-5, 5e-5, 1e-4, 2e-4, 5e-4, 1e-3, 2e-3, 5e-3, 1e-2, 2e-2, 5e-2, 0.1, 0.2, 0.5, 1,
+  ], // V full scale
+  INPUT_RANGES: [0.01, 0.1, 1, 10], // V peak
+  REFERENCE_RANGE: [1, 5000], // Hz
+  REFERENCE_KNOB_STEPS: { keyboardStep: 0.05, shiftKeyboardStep: 0.002, pageKeyboardStep: 0.25 }, // log10(Hz)
+  PHASE_KNOB_STEPS: { keyboardStep: Math.PI / 180, shiftKeyboardStep: Math.PI / 1800, pageKeyboardStep: Math.PI / 12 }, // rad
+  CHOPPER_KNOB_STEPS: { keyboardStep: 1, shiftKeyboardStep: 0.1, pageKeyboardStep: 20 }, // Hz
+  STRAIN_KNOB_STEPS: { keyboardStep: 1e-5, shiftKeyboardStep: 1e-6, pageKeyboardStep: 1e-4 }, // dimensionless strain
+  CAPACITANCE_KNOB_STEPS: { keyboardStep: 1e-12, shiftKeyboardStep: 1e-13, pageKeyboardStep: 10e-12 }, // F
+  DISPLAY_FULL_SCALE_COUNTS: 10000,
+  DISPLAY_MAX_COUNTS: 19999,
+  RESPONSE_MAGNITUDE_LIMIT: 1.04, // V
+  LOCK_HOLD: 0.5, // s
+  OVERLOAD_HOLD: 0.12, // s
+  MAX_ROWS: 50,
+  HIGH_NOISE_DENSITY: 0.02, // V/√Hz
+  TRIM_STRAIN_RANGE: [-0.001, 0.0012], // dimensionless
+  TRIM_CAPACITANCE_RANGE: [0, 60e-12], // F
+  SCOPE_WINDOW: 0.04, // s
+  DEFAULTS: {
+    choppedLight: {
+      sensitivity: 1,
+      range: 10,
+      frequency: LAB_SETTINGS.INITIAL_CHOP_FREQUENCY,
+      density: LAB_SETTINGS.INPUT_NOISE_DENSITY,
+    },
+    bridge: { sensitivity: 0.001, range: 0.01, frequency: 2500, density: 0.00000002 },
+    rcFilter: { sensitivity: 1, range: 10, frequency: 100, density: LAB_SETTINGS.INPUT_NOISE_DENSITY },
+  },
+} as const;
+
+export const ROTARY_SETTINGS = {
+  RADIUS: 21,
+  SWEEP: PHASE_SETTINGS.KNOB_SWEEP,
+  DEAD_ZONE: PHASE_SETTINGS.KNOB_DRAG_DEAD_ZONE,
+  TICK_START: PHASE_SETTINGS.KNOB_TICK_START,
+  TICK_END: PHASE_SETTINGS.KNOB_TICK_END,
+  POINTER_INSET: PHASE_SETTINGS.KNOB_POINTER_INSET,
+  MOUSE_INSET: 6,
+  TOUCH_INSET: 9,
+  RIM_WIDTH: 2,
+  TICK_WIDTH: 1.25,
+  POINTER_WIDTH: 3,
+  LABEL_SIZE: 11,
+  VALUE_SIZE: 12,
+  LABEL_GAP: 3,
+  INNER_DISC_RATIO: 0.68,
+  INNER_DISC_OPACITY: 0.3,
+  MAX_DETENT_STEP: Math.PI / 6,
+  KEY_STEP: 1 / 20,
+  FINE_KEY_STEP: 1 / 100,
+  PAGE_KEY_STEP: 1 / 5,
+} as const;
+
+export const LAB_LAYOUT_SETTINGS = {
+  MARGIN: 16,
+  GAP: 12,
+  INSET: 11,
+  COMPACT_GAP: 6,
+  SECTION_GAP: 9,
+  TOP_HEIGHT: 316,
+  APPARATUS_WIDTH: 460,
+  APPARATUS_DRAWING_HEIGHT: 116,
+  WORKSPACE_HEIGHT: 218,
+  SCOPE_HEIGHT: 153,
+  FRONT_SECTION_WIDTHS: [158, 288, 151, 304],
+  KNOB_GAP: 10,
+  INDICATOR_RADIUS: 4,
+  DISPLAY_WIDTH: 144,
+  DISPLAY_HEIGHT: 33,
+  METER_WIDTH: 126,
+  METER_HEIGHT: 11,
+  DISPLAY_FONT_SIZE: 19,
+  LABEL_SIZE: 12,
+  HEADING_SIZE: 14,
+  KEY_FONT_SIZE: 11,
+  KEY_INSET_X: 7,
+  KEY_INSET_Y: 4,
+  KEY_RADIUS: 3,
+  TABLE_VISIBLE_ROWS: 5,
+  TABLE_CELL_WIDTH: 53,
+  TABLE_SETTING_WIDTH: 99,
+  TABLE_ROW_HEIGHT: 22,
+  RESPONSE_HEIGHT: 202,
+  RESET_RADIUS: 17,
+  CABLE_WIDTH: 3,
+  CONNECTOR_RADIUS: 6,
+  DISPLAY_KNOB_RADIUS: 17,
+  APPARATUS_SIGNAL_PORT_INSET: 80,
+  APPARATUS_SYNC_PORT_INSET: 37,
+  CABLE_DROP: 24,
+} as const;
+
+/** Points are in the local coordinates of the experiment drawing. */
+export const LAB_DRAWING_SETTINGS = {
+  BEAM_X: [38, 129, 225, 313, 416],
+  BEAM_Y: 46,
+  LABEL_Y: 92,
+  RADIUS: 29,
+  BLADE_RADIUS: 26,
+  APERTURE_RADIUS: 7,
+  SIGNAL_WIDTH: 2,
+  GRID: 12,
+  BRIDGE_ORIGIN_X: 96,
+  BRIDGE_ORIGIN_Y: 46,
+  BRIDGE_ARM: 38,
+  BRIDGE_PICKUP_X: 175,
+  CANTILEVER_X: 257,
+  CANTILEVER_Y: 42,
+  CANTILEVER_LENGTH: 130,
+  STRAIN_VISUAL_GAIN: 24000, // px per dimensionless strain
+  BOX_X: 141,
+  BOX_Y: 12,
+  BOX_WIDTH: 176,
+  BOX_HEIGHT: 72,
+  SLIDER_WIDTH: 146,
+  SLIDER_HEIGHT: 5,
 } as const;

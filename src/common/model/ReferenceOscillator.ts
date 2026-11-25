@@ -13,6 +13,7 @@ type Harmonic = (typeof Harmonic)[keyof typeof Harmonic];
 type ReferenceOptions = {
   frequency?: number;
   locked?: boolean;
+  followSignalPhase?: boolean;
   phase?: number;
   waveform?: ReferenceWaveform;
   harmonic?: Harmonic;
@@ -30,6 +31,7 @@ export class ReferenceOscillator {
   /** Harmonic of the fundamental used by the mixer. */
   public harmonic: Harmonic;
 
+  private readonly followSignalPhase: boolean;
   private readonly carrier = new SignalSource();
   private readonly signal: SignalSource;
 
@@ -38,6 +40,7 @@ export class ReferenceOscillator {
       {
         frequency: SOURCE_SETTINGS.DEFAULT_FREQUENCY,
         locked: true,
+        followSignalPhase: false,
         phase: 0,
         waveform: ReferenceWaveform.SINE,
         harmonic: Harmonic.FUNDAMENTAL,
@@ -45,6 +48,7 @@ export class ReferenceOscillator {
       providedOptions,
     );
     this.signal = signal;
+    this.followSignalPhase = options.followSignalPhase;
     this.frequency = options.frequency;
     this.lockedProperty = new BooleanProperty(options.locked);
     this.phase = options.phase;
@@ -59,7 +63,9 @@ export class ReferenceOscillator {
 
   /** Unshifted fundamental phase in [0, 2π), also used by the Lab excitation and scope trigger. */
   public carrierPhaseAt(t: number): number {
-    return this.carrier.carrierPhaseAt(t, this.frequencyHz);
+    return this.followSignalPhase && this.lockedProperty.value
+      ? this.signal.carrierPhaseAt(t)
+      : this.carrier.carrierPhaseAt(t, this.frequencyHz);
   }
 
   /** In-phase input to the mixer. */
@@ -80,6 +86,11 @@ export class ReferenceOscillator {
   /** Restore the lock selection and rewind the carrier. */
   public reset(): void {
     this.lockedProperty.reset();
+    this.resetCarrier();
+  }
+
+  /** Rewind the carrier while keeping the current reference source. */
+  public resetCarrier(): void {
     this.carrier.reset();
   }
 

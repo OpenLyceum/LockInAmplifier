@@ -20,11 +20,13 @@ type ScopeOptions<Key> = ConstructorParameters<typeof TimeChartNode>[0] & {
   traces: readonly Trace<Key>[];
   mean?: () => number;
   showLegend?: boolean;
+  clippingRangeProperty?: TReadOnlyProperty<number>;
 };
 
 export class ScopeChartNode<Key extends string> extends TimeChartNode {
   private readonly traces;
   private readonly guide;
+  private readonly clippingGuides;
   private readonly meanLabel;
   private readonly visibleLabels;
 
@@ -42,6 +44,7 @@ export class ScopeChartNode<Key extends string> extends TimeChartNode {
       count: 0,
     }));
     this.guide = options.mean ? this.newGuide() : null;
+    this.clippingGuides = options.clippingRangeProperty ? ([this.newGuide(), this.newGuide()] as const) : null;
     this.meanLabel = options.mean
       ? instrumentText(instrumentStrings.units.unavailableStringProperty.value, {
           font: chartLabelFont,
@@ -93,6 +96,11 @@ export class ScopeChartNode<Key extends string> extends TimeChartNode {
       if (trace.path.visible) {
         this.drawSamples(trace.path, trace.scratch, trace.count, 0);
       }
+    }
+    if (this.clippingGuides && this.options.clippingRangeProperty) {
+      const limit = this.options.clippingRangeProperty.value;
+      this.drawGuide(this.clippingGuides[0], limit);
+      this.drawGuide(this.clippingGuides[1], -limit);
     }
     if (this.guide && this.meanLabel) {
       this.drawGuide(this.guide, mean);

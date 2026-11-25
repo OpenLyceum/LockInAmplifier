@@ -12,6 +12,8 @@
 import { BooleanProperty, NumberProperty, Property } from "scenerystack/axon";
 import { Range } from "scenerystack/dot";
 import { describe, expect, it, vi } from "vitest";
+import { RotaryKnob as LabRotaryKnob } from "../src/common/controls/RotaryKnob.js";
+import { RotarySwitch } from "../src/common/controls/RotarySwitch.js";
 import { ReferenceOscillator } from "../src/common/model/ReferenceOscillator.js";
 import { RingBuffer } from "../src/common/model/RingBuffer.js";
 import { SampleClock } from "../src/common/model/SampleClock.js";
@@ -49,7 +51,7 @@ describeDisposalLeaks([
   { name: "VirtualExperimentModel", create: () => new VirtualExperimentModel() },
 ]);
 
-const { charts, controls, units } = instrumentStrings;
+const { charts, controls, lab, units } = instrumentStrings;
 const chartOptions = {
   width: 400,
   height: 200,
@@ -68,6 +70,28 @@ history.push(0.3);
 
 // memory-leak-covers: ChartFrame, TimeChartNode
 describeDisposalLeaks([
+  {
+    name: "Lab RotaryKnob",
+    create: () =>
+      new LabRotaryKnob(bandwidthProperty, new Range(1, 5000), {
+        captionStringProperty: lab.frequencyStringProperty,
+        valueStringProperty: units.hertzStringProperty,
+      }),
+    keepAlive: () => [bandwidthProperty],
+  },
+  {
+    name: "RotarySwitch",
+    create: () =>
+      new RotarySwitch(
+        orderProperty,
+        [
+          { value: 1, stringProperty: lab.oneFStringProperty },
+          { value: 2, stringProperty: lab.twoFStringProperty },
+        ],
+        { captionStringProperty: lab.harmonicStringProperty },
+      ),
+    keepAlive: () => [orderProperty],
+  },
   {
     name: "DisposalBag",
     create: () => {

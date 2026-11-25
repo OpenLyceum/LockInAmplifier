@@ -23,7 +23,7 @@
  * Add a new ProfileColorProperty entry to the LockInAmplifierColors object below.
  * Always provide both "default" and "projector" values.
  */
-import { ProfileColorProperty } from "scenerystack/scenery";
+import { Color, ProfileColorProperty } from "scenerystack/scenery";
 import LockInAmplifierNamespace from "./LockInAmplifierNamespace.js";
 
 const LockInAmplifierColors = {
@@ -149,6 +149,38 @@ const LockInAmplifierColors = {
   selectedBlockColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "selectedBlock", {
     default: "#273f5b",
     projector: "#deedf8",
+  }),
+  knobBodyColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "knobBody", {
+    default: new Color(54, 68, 85),
+    projector: new Color(222, 229, 236),
+  }),
+  knobRimColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "knobRim", {
+    default: new Color(111, 130, 151),
+    projector: new Color(90, 106, 124),
+  }),
+  knobIndicatorColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "knobIndicator", {
+    default: new Color(241, 246, 252),
+    projector: new Color(28, 45, 62),
+  }),
+  panelButtonColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "panelButton", {
+    default: new Color(218, 229, 242),
+    projector: new Color(227, 235, 244),
+  }),
+  ledOffColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "ledOff", {
+    default: new Color(86, 98, 115),
+    projector: new Color(174, 184, 195),
+  }),
+  labWarningColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "labWarning", {
+    default: new Color(255, 186, 90),
+    projector: new Color(147, 65, 0),
+  }),
+  labReadoutColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "labReadout", {
+    default: new Color(152, 245, 225),
+    projector: new Color(0, 86, 78),
+  }),
+  labFaceColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "labFace", {
+    default: new Color(20, 30, 43),
+    projector: new Color(229, 235, 241),
   }),
   badgeBackgroundColorProperty: new ProfileColorProperty(LockInAmplifierNamespace, "badgeBackground", {
     default: "#263851",
