@@ -19,7 +19,7 @@ const responseRows = (rows: readonly LabRow[]) =>
     .filter((row) => row.scenario === "rcFilter" && !row.clipped && row.harmonic === 1)
     .sort((a, b) => a.frequency - b.frequency);
 
-export class ResponsePlot extends ChartFrame {
+class ResponsePlot extends ChartFrame {
   private readonly pointCountProperty: NumberProperty;
   private readonly points: Path;
   private readonly guide: Path;

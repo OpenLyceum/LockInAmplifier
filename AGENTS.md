@@ -68,4 +68,4 @@ Implement `LabScenario` under `src/lab/model/scenarios/` with SI units and a sca
 
 ## Compliance carve-outs
 
-None yet.
+- `memory-leak:ResponsePlot` — file-private class in `src/lab/view/LabResponsePlots.ts`. The leak suite covers it through `LabResponsePlots`, which builds and disposes both plots.

@@ -35,7 +35,7 @@ import { FilteringScreenSummaryContent } from "../src/filtering/view/FilteringSc
 import Colors from "../src/LockInAmplifierColors.js";
 import { NOISE_SETTINGS } from "../src/LockInAmplifierConstants.js";
 import { VirtualExperimentModel } from "../src/lab/model/VirtualExperimentModel.js";
-import { ResponsePlot } from "../src/lab/view/LabResponsePlots.js";
+import { LabResponsePlots } from "../src/lab/view/LabResponsePlots.js";
 import { VirtualExperimentScreenSummaryContent } from "../src/lab/view/VirtualExperimentScreenSummaryContent.js";
 import { MixingModel } from "../src/mixing/model/MixingModel.js";
 import { MixingScreenSummaryContent } from "../src/mixing/view/MixingScreenSummaryContent.js";
@@ -196,6 +196,7 @@ describeDisposalLeaks([
 const filterModel = new FilteringModel();
 const phaseModel = new PhaseDetectionModel();
 const dualProperty = new BooleanProperty(true);
+const labModel = new VirtualExperimentModel();
 describeDisposalLeaks([
   {
     name: "HistogramNode",
@@ -217,17 +218,10 @@ describeDisposalLeaks([
     keepAlive: () => [phaseModel, dualProperty],
   },
   {
-    name: "ResponsePlot",
-    create: () => {
-      const node = new ResponsePlot(
-        320,
-        lab.frequencyStringProperty,
-        lab.harmonicStringProperty,
-        Colors.guideColorProperty,
-      );
-      node.draw([], true);
-      return node;
-    },
+    // Builds both private ResponsePlot charts.
+    name: "LabResponsePlots",
+    create: () => new LabResponsePlots(labModel.rowsProperty, 640),
+    keepAlive: () => [labModel],
   },
   {
     name: "RotaryKnob",
