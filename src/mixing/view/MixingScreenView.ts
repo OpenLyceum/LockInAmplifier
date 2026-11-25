@@ -158,7 +158,7 @@ export class MixingScreenView extends ScreenView {
       const spectrum = new SpectrumChartNode({
         ...geometry,
         xTitle: charts.frequencyHzStringProperty,
-        yUnit: stage.key === "reference" ? charts.decibelGainStringProperty : charts.decibelVoltsStringProperty,
+        yUnit: stage.key === "reference" ? charts.decibelGainStringProperty : charts.levelDbVoltsStringProperty,
         color: stage.color,
         accessibleDescription: new DerivedProperty([a11y.spectrumStringProperty, stage.title], (pattern, title) =>
           StringUtils.fillIn(pattern, { stage: title }),

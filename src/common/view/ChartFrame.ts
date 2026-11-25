@@ -14,7 +14,9 @@ type FrameOptions = {
   height: number;
   title: TReadOnlyProperty<string>;
   xTitle?: TReadOnlyProperty<string>;
-  yUnit: TReadOnlyProperty<string>;
+  yUnit?: TReadOnlyProperty<string>;
+  showYTicks?: boolean;
+  plotLeft?: number;
   accessibleDescription?: TReadOnlyProperty<string>;
   compact?: boolean;
   showXAxis?: boolean;
@@ -35,7 +37,7 @@ export class ChartFrame extends Node {
   private readonly grid: Path;
   private readonly xLabels: Node;
   private readonly yLabels: Node;
-  private readonly chartLeft = settings.LEFT;
+  private readonly chartLeft: number;
   private readonly chartTop: number;
 
   public constructor(options: FrameOptions) {
@@ -43,6 +45,7 @@ export class ChartFrame extends Node {
       pickable: false,
       ...(options.accessibleDescription ? { accessibleParagraph: options.accessibleDescription } : {}),
     });
+    this.chartLeft = options.plotLeft ?? settings.LEFT;
     this.chartTop = options.compact ? settings.COMPACT_TOP : settings.TOP;
     const bottom = options.showXAxis === false ? settings.COMPACT_BOTTOM : settings.BOTTOM;
     this.plotWidth = options.width - this.chartLeft - settings.RIGHT;
@@ -60,28 +63,33 @@ export class ChartFrame extends Node {
       centerY: this.chartTop / 2,
       maxWidth: this.plotWidth,
     });
-    const yUnit = instrumentText(options.yUnit, {
-      font: chartLabelFont,
-      fill: Colors.mutedTextColorProperty,
-      right: this.chartLeft - settings.AXIS_LABEL_GAP,
-      centerY: this.chartTop / 2,
-      maxWidth: this.chartLeft - 2 * settings.AXIS_LABEL_GAP,
-    });
+    const yUnit = options.yUnit
+      ? instrumentText(options.yUnit, {
+          font: chartLabelFont,
+          fill: Colors.mutedTextColorProperty,
+          rotation: -Math.PI / 2,
+          left: settings.AXIS_LABEL_GAP,
+          centerY: this.chartTop + this.plotHeight / 2,
+          maxWidth: this.plotHeight,
+        })
+      : null;
     this.header = new Node();
     this.grid = new Path(null, { stroke: Colors.gridColorProperty, lineWidth: settings.GRID_WIDTH });
     this.plot = new Node({ clipArea: Shape.bounds(new Bounds2(0, 0, this.plotWidth, this.plotHeight)) });
     this.xLabels = new Node();
-    this.yLabels = new Node();
+    this.yLabels = new Node({ visible: options.showYTicks !== false });
     const positionedPlot = new Node({
       x: this.chartLeft,
       y: this.chartTop,
       children: [this.grid, this.plot, this.xLabels, this.yLabels],
     });
-    this.children = [this.backing, positionedPlot, yUnit, this.titleNode, this.header];
+    this.children = [this.backing, positionedPlot, ...(yUnit ? [yUnit] : []), this.titleNode, this.header];
+    if (yUnit) {
+      this.bag.own(yUnit);
+    }
     this.bag.own(
       this.backing,
       this.titleNode,
-      yUnit,
       positionedPlot,
       this.plot,
       this.grid,

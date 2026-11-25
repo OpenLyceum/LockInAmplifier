@@ -1,151 +1,373 @@
-/**
- * PhaseDetectionScreenView.ts
- *
- * The top-level view for the simulation screen.
- *
- * All visual nodes are added here. Follow these conventions:
- *   - Use this.layoutBounds for positioning (never magic pixel values)
- *   - Keep a ResetAllButton that calls model.reset() and this.reset()
- *   - Override step(dt) for frame-by-frame animation
- *
- * ── Adding content ────────────────────────────────────────────────────────────
- * 1. Create Node subclasses in separate files (e.g. LockInAmplifierControlPanel.ts)
- * 2. Instantiate them here and call this.addChild(...)
- * 3. Link them to model properties:
- *      model.isRunningProperty.link( isRunning => { ... } );
- *
- * ── Layout bounds ─────────────────────────────────────────────────────────────
- * SceneryStack uses a virtual 1024×618 coordinate space by default.
- * this.layoutBounds gives you the full rectangle; use it for alignment:
- *   center, minX, maxX, minY, maxY, width, height
- */
-
-import { type EmptySelfOptions, optionize } from "scenerystack/phet-core";
-import { Node, Rectangle } from "scenerystack/scenery";
-import { ResetAllButton } from "scenerystack/scenery-phet";
+/** Output geometry, signal and reference controls, and a common time history. */
+import { DerivedProperty, Multilink, NumberProperty, type TReadOnlyProperty } from "scenerystack/axon";
+import { Shape } from "scenerystack/kite";
+import { AlignBox, AlignGroup, GridBox, HBox, Node, Path, RichText, VBox } from "scenerystack/scenery";
+import { PlayPauseButton, ResetAllButton } from "scenerystack/scenery-phet";
 import { ScreenView, type ScreenViewOptions } from "scenerystack/sim";
-import { FLAT_RESET_ALL_BUTTON_OPTIONS } from "../../common/LockInAmplifierButtonOptions.js";
-import LockInAmplifierColors from "../../LockInAmplifierColors.js";
-import { SCREEN_VIEW_MARGIN } from "../../LockInAmplifierConstants.js";
+import { ABSwitch, RectangularPushButton } from "scenerystack/sun";
+import {
+  FLAT_BUTTON_APPEARANCE_OPTIONS,
+  FLAT_PANEL_PUSH_BUTTON_OPTIONS,
+  FLAT_RESET_ALL_BUTTON_OPTIONS,
+  LIGHT_SURFACE_TEXT_FILL,
+} from "../../common/LockInAmplifierButtonOptions.js";
+import { LockInAmplifierPanel } from "../../common/LockInAmplifierPanel.js";
+import { instrumentCheckbox } from "../../common/view/instrumentControls.js";
+import {
+  chartLabelFont,
+  instrumentFont,
+  instrumentHeadingFont,
+  instrumentStrings,
+  instrumentText,
+  valueStringProperty,
+} from "../../common/view/instrumentText.js";
+import { LockInAmplifierNumberControl } from "../../common/view/LockInAmplifierNumberControl.js";
+import { ReadoutRow } from "../../common/view/ReadoutRow.js";
+import { SlopeRadioButtonGroup } from "../../common/view/SlopeRadioButtonGroup.js";
+import { StripChartNode } from "../../common/view/StripChartNode.js";
+import { TimeConstantControl } from "../../common/view/TimeConstantControl.js";
+import { StringManager } from "../../i18n/StringManager.js";
+import Colors from "../../LockInAmplifierColors.js";
+import {
+  CHART_SETTINGS,
+  P3_LAYOUT_SETTINGS as layout,
+  PHASE_SETTINGS as settings,
+} from "../../LockInAmplifierConstants.js";
 import type { PhaseDetectionModel } from "../model/PhaseDetectionModel.js";
 import { PhaseDetectionScreenSummaryContent } from "./PhaseDetectionScreenSummaryContent.js";
+import { PhasorPlane } from "./PhasorPlane.js";
+import { RotaryKnob } from "./RotaryKnob.js";
 
-export type PhaseDetectionScreenViewOptions = ScreenViewOptions;
+const { phase: strings, charts, controls, units } = instrumentStrings;
+const a11y = StringManager.getInstance().getPhaseDetectionA11yStrings();
+const degreesPerRadian = 1 / settings.PHASE_STEP;
 
 export class PhaseDetectionScreenView extends ScreenView {
-  public constructor(model: PhaseDetectionModel, providedOptions?: PhaseDetectionScreenViewOptions) {
-    // ── Accessibility: screen summary ───────────────────────────────────────────
-    // The screen summary is the first thing a screen-reader user encounters. It
-    // is registered here, in the ScreenView's super() options, so every sim wires
-    // it the same way. See PhaseDetectionScreenSummaryContent for the four content regions.
-    const options = optionize<PhaseDetectionScreenViewOptions, EmptySelfOptions, ScreenViewOptions>()(
-      {
-        screenSummaryContent: new PhaseDetectionScreenSummaryContent(model),
-      },
-      providedOptions,
+  private readonly plane: PhasorPlane;
+  private readonly strip: StripChartNode;
+
+  public constructor(model: PhaseDetectionModel, options?: ScreenViewOptions) {
+    super({ ...options, screenSummaryContent: new PhaseDetectionScreenSummaryContent(model) });
+    const bounds = this.layoutBounds;
+    const left = bounds.left + layout.MARGIN;
+    const top = bounds.top + layout.MARGIN;
+    const right = bounds.right - layout.MARGIN;
+    const bottom = bounds.bottom - layout.MARGIN;
+    const plotWidth = bounds.width - 2 * layout.MARGIN - layout.GAP - settings.CONTROL_WIDTH;
+    const dualProperty = new DerivedProperty([model.modeProperty], (setting) => setting === "dual");
+    const canShowSignalProperty = new DerivedProperty([model.hidePhaseProperty], (hidden) => !hidden);
+    const showFrameProperty = new DerivedProperty(
+      [canShowSignalProperty, model.showSignalFrameProperty],
+      (visible, show) => visible && show,
     );
-    super(options);
-
-    // ── Background ────────────────────────────────────────────────────────────
-    // A full-screen rectangle that follows the active color profile.
-    // Replace or remove once you add real content.
-    const backgroundRect = new Rectangle(0, 0, this.layoutBounds.width, this.layoutBounds.height, {
-      fill: LockInAmplifierColors.backgroundColorProperty,
+    this.plane = new PhasorPlane(model, dualProperty);
+    const stripTitleProperty = new DerivedProperty(
+      [dualProperty, strings.dualHistoryStringProperty, strings.singleHistoryStringProperty],
+      (showBoth, many, one) => (showBoth ? many : one),
+    );
+    this.strip = new StripChartNode(model.xHistory, {
+      width: plotWidth,
+      height: settings.STRIP_HEIGHT,
+      title: stripTitleProperty,
+      xTitle: charts.timeSecondsStringProperty,
+      yUnit: charts.voltageStringProperty,
+      color: Colors.outputTraceColorProperty,
+      windowProperty: new NumberProperty(settings.STRIP_SECONDS),
+      minimumSpan: () => model.amplitudeProperty.value,
+      additionalChannels: [
+        { history: model.yHistory, color: Colors.quadratureTraceColorProperty, visibleProperty: dualProperty },
+        { history: model.rHistory, color: Colors.productTraceColorProperty, visibleProperty: dualProperty },
+      ],
+      accessibleDescription: a11y.stripStringProperty,
     });
-    this.addChild(backgroundRect);
-
-    // ── Accessibility: per-control names ────────────────────────────────────────
-    // EVERY interactive node must carry an `accessibleName` (and an
-    // `accessibleHelpText` where useful), sourced from the StringManager `a11y`
-    // string group — never a hard-coded English literal. Sun/scenery-phet controls
-    // (NumberControl, Checkbox, ComboBox, AquaRadioButtonGroup, …) accept it as an
-    // option; a draggable plain Node needs `tagName: "div", focusable: true` too.
-    // Example (uncomment and adapt when you add a real control; add the
-    // `a11y.controls.startButton` string to every strings_*.json first):
-    //
-    //   const a11y = StringManager.getInstance().getA11yStrings();
-    //   const startButton = new RectangularPushButton({
-    //     ...FLAT_RECTANGULAR_BUTTON_OPTIONS, // flat appearance, not SceneryStack's default 3-D look
-    //     content: someIcon,
-    //     listener: () => model.start(),
-    //     accessibleName: a11y.controls.startButtonStringProperty,
-    //   });
-    //   this.addChild(startButton);
-
-    // ── Reset All button ──────────────────────────────────────────────────────
-    // Always position at bottom-right (PhET convention).
-    const resetAllButton = new ResetAllButton({
-      ...FLAT_RESET_ALL_BUTTON_OPTIONS,
-      listener: () => {
-        model.reset();
-        this.reset();
+    const noteWidth = plotWidth - this.plane.width - layout.GAP - 2 * layout.PANEL_INSET;
+    const heading = (label: TReadOnlyProperty<string>) => instrumentText(label, { font: instrumentHeadingFont });
+    const identityProperty = new DerivedProperty(
+      [model.detuneProperty, strings.identityStringProperty, strings.detunedIdentityStringProperty],
+      (offset, locked, unlocked) => (offset === 0 ? locked : unlocked),
+    );
+    const note = (label: TReadOnlyProperty<string>, visibleProperty?: TReadOnlyProperty<boolean>) =>
+      instrumentText(label, { maxWidth: noteWidth, ...(visibleProperty ? { visibleProperty } : {}) });
+    const legend = new GridBox({
+      rows: [
+        [
+          instrumentText(strings.xStringProperty, { fill: Colors.outputTraceColorProperty }),
+          note(strings.xLegendStringProperty),
+        ],
+        [
+          instrumentText(strings.yStringProperty, { fill: Colors.quadratureTraceColorProperty }),
+          note(strings.yLegendStringProperty),
+        ],
+        [
+          instrumentText(strings.rStringProperty, { fill: Colors.productTraceColorProperty }),
+          note(strings.rLegendStringProperty),
+        ],
+      ],
+      xAlign: "left",
+      xSpacing: layout.CONTENT_GAP,
+      ySpacing: layout.ROW_GAP,
+    });
+    legend.visibleProperty = dualProperty;
+    const singleNoteProperty = new DerivedProperty([dualProperty], (isDual) => !isDual);
+    const singleNote = new RichText(strings.singleNoteStringProperty, {
+      font: instrumentFont,
+      fill: Colors.mutedTextColorProperty,
+      lineWrap: noteWidth,
+      visibleProperty: singleNoteProperty,
+    });
+    const frameToggle = instrumentCheckbox(
+      model.showSignalFrameProperty,
+      strings.showFrameStringProperty,
+      a11y.controls.showFrameStringProperty,
+    );
+    frameToggle.enabledProperty = canShowSignalProperty;
+    const frame = this.createSignalFrame(model, showFrameProperty);
+    const signalPhase = new LockInAmplifierNumberControl(
+      strings.signalPhaseStringProperty,
+      model.signalPhaseProperty,
+      model.signalPhaseProperty.range,
+      units.degreesStringProperty,
+      {
+        decimals: 0,
+        multiplier: degreesPerRadian,
+        delta: settings.PHASE_STEP,
+        accessibleName: a11y.controls.signalPhaseStringProperty,
       },
-      right: this.layoutBounds.maxX - SCREEN_VIEW_MARGIN,
-      bottom: this.layoutBounds.maxY - SCREEN_VIEW_MARGIN,
-    });
-    this.addChild(resetAllButton);
-
-    // ── Accessibility: keyboard / reading traversal order ───────────────────────
-    // Make the parallel DOM (Tab order and screen-reader reading order)
-    // deterministic and independent of child z-order. ScreenView throws if you
-    // set pdomOrder on itself, so add a lightweight wrapper Node that "borrows"
-    // the interactive nodes in the order a user should reach them — Reset All
-    // last. Non-interactive decoration (background, placeholder) is omitted.
-    this.addChild(
-      new Node({
-        pdomOrder: [
-          // TODO: add the sim's interactive nodes here, in traversal order
-          resetAllButton,
+    );
+    const side = new LockInAmplifierPanel(
+      new VBox({
+        align: "left",
+        spacing: layout.SECTION_GAP,
+        excludeInvisibleChildrenFromBounds: false,
+        children: [
+          heading(strings.projectionStringProperty),
+          note(identityProperty),
+          new RichText(strings.detuneNoteStringProperty, {
+            font: instrumentFont,
+            fill: Colors.mutedTextColorProperty,
+            lineWrap: noteWidth,
+          }),
+          new AlignBox(new VBox({ children: [legend, singleNote] }), { xAlign: "left" }),
+          frameToggle,
+          new AlignBox(frame, { preferredWidth: noteWidth, preferredHeight: settings.FRAME_HEIGHT, xAlign: "left" }),
         ],
       }),
+      { xMargin: layout.PANEL_INSET, minHeight: settings.PLANE_HEIGHT },
     );
+    const plotColumn = new VBox({
+      left,
+      top,
+      align: "left",
+      spacing: layout.GAP,
+      children: [new HBox({ spacing: layout.GAP, align: "top", children: [this.plane, side] }), this.strip],
+    });
+
+    const reference = new RotaryKnob(
+      model.referencePhaseProperty,
+      a11y.controls.referencePhaseStringProperty,
+      a11y.controls.knobHelpStringProperty,
+    );
+    const referenceValue = valueStringProperty(
+      model.referencePhaseProperty,
+      units.degreesStringProperty,
+      0,
+      degreesPerRadian,
+    );
+    const autoPhase = new RectangularPushButton({
+      ...FLAT_PANEL_PUSH_BUTTON_OPTIONS,
+      content: instrumentText(strings.autoPhaseStringProperty, { fill: LIGHT_SURFACE_TEXT_FILL }),
+      accessibleName: a11y.controls.autoPhaseStringProperty,
+      listener: () => model.autoPhase(),
+    });
+    const mode = new ABSwitch(
+      model.modeProperty,
+      "single",
+      instrumentText(strings.singleStringProperty),
+      "dual",
+      instrumentText(strings.dualStringProperty),
+      {
+        toggleSwitchOptions: {
+          thumbFill: Colors.controlSurfaceColorProperty,
+          thumbStroke: Colors.axisColorProperty,
+          trackStroke: Colors.axisColorProperty,
+          trackFillLeft: Colors.badgeBackgroundColorProperty,
+          trackFillRight: Colors.selectedBlockColorProperty,
+        },
+        valueAAccessibleName: a11y.controls.singleStringProperty,
+        valueBAccessibleName: a11y.controls.dualStringProperty,
+      },
+    );
+    const output = (
+      label: TReadOnlyProperty<string>,
+      value: TReadOnlyProperty<number>,
+      unit: TReadOnlyProperty<string> = units.millivoltsStringProperty,
+      multiplier = 1000,
+      show = true,
+    ) => {
+      const row = new ReadoutRow(
+        label,
+        valueStringProperty(value, unit, 1, multiplier),
+        settings.READOUT_WIDTH,
+        settings.READOUT_BADGE_WIDTH,
+      );
+      if (!show) {
+        row.visibleProperty = dualProperty;
+      }
+      return row;
+    };
+    const readouts = new GridBox({
+      rows: [
+        [
+          output(strings.xStringProperty, model.xProperty),
+          output(strings.rStringProperty, model.rProperty, units.millivoltsStringProperty, 1000, false),
+        ],
+        [
+          output(strings.yStringProperty, model.yProperty, units.millivoltsStringProperty, 1000, false),
+          output(
+            strings.thetaStringProperty,
+            model.thetaProperty,
+            units.degreesStringProperty,
+            degreesPerRadian,
+            false,
+          ),
+        ],
+      ],
+      xSpacing: layout.ROW_GAP,
+      ySpacing: layout.ROW_GAP,
+      excludeInvisibleChildrenFromBounds: false,
+    });
+    const hide = instrumentCheckbox(
+      model.hidePhaseProperty,
+      strings.hidePhaseStringProperty,
+      a11y.controls.hidePhaseStringProperty,
+    );
+    const amplitude = new LockInAmplifierNumberControl(
+      controls.amplitudeStringProperty,
+      model.amplitudeProperty,
+      model.amplitudeProperty.range,
+      units.voltsStringProperty,
+      { decimals: 3, delta: layout.CONTROL_DELTA, accessibleName: a11y.controls.amplitudeStringProperty },
+    );
+    signalPhase.visibleProperty = canShowSignalProperty;
+    const detune = new LockInAmplifierNumberControl(
+      strings.detuneStringProperty,
+      model.detuneProperty,
+      model.detuneProperty.range,
+      units.hertzStringProperty,
+      { decimals: 2, delta: settings.DETUNE_STEP, accessibleName: a11y.controls.detuneStringProperty },
+    );
+    const density = new LockInAmplifierNumberControl(
+      controls.densityStringProperty,
+      model.densityProperty,
+      model.densityProperty.range,
+      units.densityStringProperty,
+      { decimals: 1, multiplier: 1000, accessibleName: a11y.controls.densityStringProperty },
+    );
+    const time = new TimeConstantControl(model.timeConstantProperty, a11y.controls.timeConstantStringProperty);
+    const slope = new SlopeRadioButtonGroup(model.orderProperty, a11y.controls.slopeStringProperty);
+    const group = new AlignGroup({ matchVertical: false });
+    const stack = (children: Node[]) =>
+      group.createBox(
+        new LockInAmplifierPanel(
+          new VBox({
+            align: "left",
+            spacing: layout.CONTENT_GAP,
+            excludeInvisibleChildrenFromBounds: false,
+            children,
+          }),
+          { minWidth: settings.CONTROL_WIDTH, xMargin: layout.PANEL_INSET },
+        ),
+      );
+    const panels = new VBox({
+      align: "right",
+      right,
+      top,
+      spacing: layout.GAP,
+      children: [
+        stack([
+          new HBox({ spacing: layout.GAP, children: [heading(strings.detectorStringProperty), mode] }),
+          readouts,
+          new HBox({
+            spacing: layout.SECTION_GAP,
+            children: [
+              reference,
+              new VBox({
+                align: "left",
+                spacing: layout.ROW_GAP,
+                children: [
+                  instrumentText(strings.referencePhaseStringProperty),
+                  instrumentText(referenceValue, { font: chartLabelFont }),
+                ],
+              }),
+              autoPhase,
+            ],
+          }),
+        ]),
+        stack([heading(controls.inputHeadingStringProperty), amplitude, hide, signalPhase]),
+        stack([heading(controls.filterStringProperty), detune, time, slope, density]),
+      ],
+    });
+    const play = new PlayPauseButton(model.timer.isPlayingProperty, {
+      ...FLAT_BUTTON_APPEARANCE_OPTIONS,
+      radius: layout.PLAY_RADIUS,
+      left,
+      bottom,
+    });
+    const reset = new ResetAllButton({
+      ...FLAT_RESET_ALL_BUTTON_OPTIONS,
+      radius: layout.RESET_RADIUS,
+      right,
+      bottom,
+      listener: () => {
+        this.interruptSubtreeInput();
+        model.reset();
+      },
+    });
+    this.children = [plotColumn, panels, play, reset, new Node({ pdomOrder: [plotColumn, panels, play, reset] })];
   }
 
-  /**
-   * Resets view-side state (animations, panel visibility, etc.).
-   * Called by the Reset All button listener.
-   */
-  public reset(): void {
-    // TODO: reset any view-side state here
+  private createSignalFrame(model: PhaseDetectionModel, visible: TReadOnlyProperty<boolean>): Node {
+    const radius = settings.FRAME_RADIUS;
+    const reference = new Path(null, {
+      stroke: Colors.referenceTraceColorProperty,
+      lineWidth: CHART_SETTINGS.GUIDE_WIDTH,
+      lineDash: [...CHART_SETTINGS.DASH],
+    });
+    const signal = new Path(new Shape().moveTo(-radius, 0).lineTo(radius, 0), {
+      stroke: Colors.axisColorProperty,
+      lineWidth: CHART_SETTINGS.GUIDE_WIDTH,
+    });
+    const dial = new Path(new Shape().circle(0, 0, radius), { stroke: Colors.gridColorProperty });
+    Multilink.multilink([model.signalFrameAngleProperty, visible], (angle, shown) => {
+      if (!shown) {
+        return;
+      }
+      const x = radius * Math.cos(angle);
+      const y = radius * Math.sin(angle);
+      reference.shape = new Shape().moveTo(-x, -y).lineTo(x, y);
+    });
+    return new HBox({
+      visibleProperty: visible,
+      spacing: layout.CONTENT_GAP,
+      children: [
+        new Node({ children: [dial, signal, reference] }),
+        new VBox({
+          spacing: layout.ROW_GAP,
+          align: "left",
+          children: [
+            instrumentText(strings.signalAxisStringProperty, { font: chartLabelFont }),
+            instrumentText(strings.referenceAxisStringProperty, {
+              font: chartLabelFont,
+              fill: Colors.referenceTraceColorProperty,
+            }),
+          ],
+        }),
+      ],
+    });
   }
 
-  /**
-   * Steps the view forward by dt seconds for animation.
-   * @param _dt - elapsed time in seconds
-   */
-  public override step(_dt: number): void {
-    // TODO: implement animation updates here
+  public override step(dt: number): void {
+    this.plane.step(dt);
+    this.strip.step(dt);
   }
-
-  // ── Accessibility / listeners: dispose ─────────────────────────────────────
-  // ScreenView is `isDisposable: false` and lives for the whole sim, so this
-  // class rarely needs dispose(). Child Nodes (and a live currentDetails
-  // DerivedProperty you own on a short-lived object) do. When you add
-  // DerivedProperty / Multilink / Property.link against model state, keep the
-  // references and tear them down — forks copy what they see. Pattern:
-  //
-  // private readonly disposePhaseDetectionScreenView: () => void;
-  //
-  // // in the constructor, after creating the listeners:
-  // const statusMultilink = Multilink.multilink(
-  //   [model.someProperty, model.otherProperty],
-  //   (a, b) => { /* update view from model */ },
-  // );
-  // const detailsProperty = new DerivedProperty(
-  //   [model.stateProperty],
-  //   (state) => `State: ${state}`,
-  // ); // → pass as currentDetailsContent in PhaseDetectionScreenSummaryContent
-  // const onExternal = (v: number) => { /* … */ };
-  // model.externalProperty.link(onExternal); // Property you do NOT own
-  //
-  // this.disposePhaseDetectionScreenView = () => {
-  //   statusMultilink.dispose();                 // Multilink you created
-  //   detailsProperty.dispose();                 // DerivedProperty you created
-  //   model.externalProperty.unlink(onExternal); // undo external link
-  // };
-  //
-  // public override dispose(): void {
-  //   this.disposePhaseDetectionScreenView();
-  //   super.dispose();
-  // }
 }

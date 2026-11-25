@@ -15,6 +15,7 @@ export class TimeChartNode extends ChartFrame {
   protected span: number = settings.MINIMUM_VOLTAGE_SPAN;
   private lastSpan = 0;
   private lastDuration = 0;
+  private lastFixedY: Range | undefined;
   private redrawElapsed = Infinity;
 
   private readonly timeOptions: TimeFrameOptions;
@@ -50,11 +51,11 @@ export class TimeChartNode extends ChartFrame {
     return path;
   }
 
-  protected newGuide(): Path {
+  protected newGuide(dashed = true): Path {
     const path = new Path(null, {
       stroke: Colors.guideColorProperty,
-      lineWidth: settings.GUIDE_WIDTH,
-      lineDash: [...settings.DASH],
+      lineWidth: dashed ? settings.GUIDE_WIDTH : settings.GRID_WIDTH,
+      lineDash: dashed ? [...settings.DASH] : [],
     });
     this.plot.addChild(path);
     this.bag.own(path);
@@ -68,11 +69,17 @@ export class TimeChartNode extends ChartFrame {
     return band;
   }
 
-  protected updateAxes(peak: number, duration: number, rolling: boolean): void {
+  protected updateAxes(peak: number, duration: number, rolling: boolean, fixedY?: Range): void {
     this.span = hystereticSpan(this.span, peak);
-    if (this.span === this.lastSpan && duration === this.lastDuration) {
+    if (
+      this.span === this.lastSpan &&
+      duration === this.lastDuration &&
+      fixedY?.min === this.lastFixedY?.min &&
+      fixedY?.max === this.lastFixedY?.max
+    ) {
       return;
     }
+    this.lastFixedY = fixedY;
     this.lastSpan = this.span;
     this.lastDuration = duration;
     const start = rolling ? -duration : 0;
@@ -84,14 +91,19 @@ export class TimeChartNode extends ChartFrame {
       return { value, label: formatTickValue(value * (rolling ? 1 : msPerSecond), 1) };
     });
     const limit = this.span * settings.SCALE_HEADROOM;
-    const tickValues = this.timeOptions.compact
-      ? [-this.span, 0, this.span]
-      : [-this.span, -this.span / 2, 0, this.span / 2, this.span];
+    const tickValues = fixedY
+      ? Array.from(
+          { length: tickIntervals },
+          (_, index) => fixedY.min + (fixedY.getLength() * index) / (tickIntervals - 1),
+        )
+      : this.timeOptions.compact
+        ? [-this.span, 0, this.span]
+        : [-this.span, -this.span / 2, 0, this.span / 2, this.span];
     this.setAxes(
       new Range(start, end),
-      new Range(-limit, limit),
+      fixedY ?? new Range(-limit, limit),
       xTicks,
-      tickValues.map((value) => ({ value, label: formatTickValue(value, this.span / 2) })),
+      tickValues.map((value) => ({ value, label: formatTickValue(value, (fixedY?.getLength() ?? this.span) / 4) })),
       this.timeOptions.showXAxis !== false,
     );
   }

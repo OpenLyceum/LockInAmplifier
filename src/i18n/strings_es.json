@@ -66,19 +66,50 @@
     },
     "filtering": {
       "screenSummary": {
-        "playArea": "El área de juego muestra el contenido principal de la simulación.",
-        "controlArea": "El área de control tiene un botón Restablecer todo que devuelve la simulación a su estado inicial.",
-        "interactionHint": "Explora la simulación interactuando con sus controles."
+        "playArea": "The strip chart and histogram share a voltage axis. Below them, compare filter gain and measured noise.",
+        "controlArea": "Adjust the filter, amplitude and noise. Step the signal or record a measurement.",
+        "interactionHint": "Increase the time constant tenfold. Compare the noise band and settling time. Record several settings to trace a noise curve."
       },
-      "currentDetails": "La simulación está en su estado inicial."
+      "currentDetails": "Time constant {{tau}} milliseconds. Filter order {{order}}. Predicted noise {{sigma}} millivolts. {{count}} recorded measurements.",
+      "strip": "History of X. Shading represents measured mean plus or minus one standard deviation. A dashed line shows the predicted mean, with thin lines at one predicted standard deviation on each side.",
+      "histogram": "Distribution of X. Horizontal bars show the percentage of samples in voltage bins. A Gaussian curve shows the predicted distribution.",
+      "bode": "Filter gain in decibels against log frequency. The half-power point is marked. The inset shows a unit-height bandwidth rectangle with the same area as the power response on linear axes.",
+      "scaling": "Measured standard deviation against time constant on log axes. Each colored line predicts the noise for one filter order.",
+      "controls": {
+        "timeConstant": "Time constant τ",
+        "slope": "Filter slope",
+        "amplitude": "Signal amplitude A",
+        "density": "White noise density eₙ",
+        "step": "Step the signal from zero to the selected amplitude",
+        "record": "Record measured standard deviation",
+        "clear": "Clear recorded measurements"
+      }
     },
     "phase": {
       "screenSummary": {
-        "playArea": "El área de juego muestra el contenido principal de la simulación.",
-        "controlArea": "El área de control tiene un botón Restablecer todo que devuelve la simulación a su estado inicial.",
-        "interactionHint": "Explora la simulación interactuando con sus controles."
+        "playArea": "The phasor plane and strip chart show the detected signal.",
+        "controlArea": "Change the signal, reference phase, detuning and filter. Switch between single and dual detection.",
+        "interactionHint": "Turn the reference phase until X is near zero, then select Auto Phase. In dual mode, watch the magnitude as you turn the knob."
       },
-      "currentDetails": "La simulación está en su estado inicial."
+      "currentDetails": "Dual mode. X {{x}} millivolts, Y {{y}} millivolts, magnitude {{r}} millivolts, angle {{theta}} degrees.",
+      "singleDetails": "Single mode. X {{x}} millivolts.",
+      "plane": "Equal-scale voltage axes. A trail fades over three seconds. In dual mode, the arrow and its projections show the output magnitude, phase and quadratures.",
+      "strip": "History of output voltage. Dual mode displays X, Y and magnitude. Single mode displays X.",
+      "controls": {
+        "showFrame": "Show signal frame",
+        "signalPhase": "Signal phase φ",
+        "referencePhase": "Reference phase θ",
+        "knobHelp": "Arrow keys turn one degree. Page Up and Page Down turn fifteen degrees.",
+        "autoPhase": "Auto Phase",
+        "hidePhase": "Hide and randomize signal phase",
+        "amplitude": "Signal amplitude A",
+        "detune": "Detune, signal frequency minus reference frequency",
+        "density": "White noise density eₙ",
+        "timeConstant": "Time constant τ",
+        "slope": "Filter slope",
+        "single": "Single-phase detection",
+        "dual": "Dual-phase detection"
+      }
     },
     "lab": {
       "screenSummary": {
@@ -104,9 +135,9 @@
     "timeMs": "Time (ms)",
     "timeSeconds": "Time relative to now (s)",
     "frequencyHz": "Frequency (Hz, log scale)",
-    "voltage": "V",
-    "referenceUnit": "Gain",
-    "decibelVolts": "dB V",
+    "voltage": "Voltage (V)",
+    "referenceUnit": "Reference gain",
+    "decibelVolts": "Amplitude (dB V)",
     "decadeK": "{{value}}k",
     "dc": "DC",
     "rbw": "RBW",
@@ -120,7 +151,8 @@
     "differencePeak": "Δf {{value}} Hz",
     "sumPeak": "Σf {{value}} Hz",
     "dcDifferencePeak": "Δf at DC",
-    "decibelGain": "dB gain"
+    "decibelGain": "Gain (dB)",
+    "levelDbVolts": "Level (dB V)"
   },
   "controls": {
     "signal": "Signal",
@@ -182,5 +214,63 @@
     "unavailable": "—",
     "infinity": "∞",
     "negativeInfinity": "−∞"
+  },
+  "filtering": {
+    "strip": "Filtered output X",
+    "histogram": "Distribution of X",
+    "binProbability": "Samples per bin (%)",
+    "bode": "Low-pass frequency response",
+    "cutoffMarker": "−3 dB",
+    "powerInset": "ENBW • power, 0–{{value}} Hz",
+    "scaling": "Noise vs. time constant",
+    "tauAxis": "Time constant τ (ms, log scale)",
+    "sigmaAxis": "Noise σₓ (mV, log scale)",
+    "orderMarker": "n={{value}}",
+    "step": "Step",
+    "record": "Record σ",
+    "clear": "Clear",
+    "filterHeading": "Filter and input",
+    "readouts": "Output measurements",
+    "enbw": "Equivalent noise bandwidth",
+    "cutoff": "Half-power frequency f₋₃dB",
+    "settling": "99% settling time",
+    "predicted": "Predicted noise σₓ",
+    "measured": "Measured noise σₓ",
+    "snr": "Output SNR (A / σₓ)",
+    "recordCount": "Recorded measurements: {{count}}",
+    "tradeoff": "10× longer τ gives √10× less noise and 10× slower settling. A steeper slope also reduces noise and slows settling.",
+    "measuredKey": "Shaded band: measured mean ± σ",
+    "predictedKey": "Guide lines: predicted A and A ± σ"
+  },
+  "phase": {
+    "plane": "Output phasor",
+    "xAxis": "X (V)",
+    "yAxis": "Y (V)",
+    "x": "X",
+    "y": "Y",
+    "r": "R",
+    "theta": "Θ",
+    "dualHistory": "Output history • X, Y, R",
+    "singleHistory": "Output history • X",
+    "projection": "Phase and magnitude",
+    "identity": "X = R cos(φ − θ)",
+    "detuneNote": "With detune, the phasor turns at Δf revolutions per second. R stays nearly steady through each turn.",
+    "xLegend": "In phase",
+    "yLegend": "Quadrature",
+    "rLegend": "Magnitude",
+    "showFrame": "Show signal frame",
+    "signalPhase": "Signal phase φ",
+    "autoPhase": "Auto Phase",
+    "single": "Single",
+    "dual": "Dual",
+    "detector": "Detector",
+    "hidePhase": "Hide phase",
+    "detune": "Detune Δf",
+    "referencePhase": "Reference θ",
+    "signalAxis": "Signal axis",
+    "referenceAxis": "Reference axis",
+    "singlePlane": "In-phase output",
+    "singleNote": "Only X is measured. Turn θ by 90° from alignment to bring X to zero.",
+    "detunedIdentity": "X = R cos Θ"
   }
 }

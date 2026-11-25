@@ -3,7 +3,7 @@ import { DerivedProperty, NumberProperty } from "scenerystack/axon";
 import { Range } from "scenerystack/dot";
 import { type EmptySelfOptions, optionize } from "scenerystack/phet-core";
 import { StringUtils } from "scenerystack/phetcommon";
-import { GridBox, HBox, Node, VBox } from "scenerystack/scenery";
+import { AlignGroup, GridBox, HBox, Node, VBox } from "scenerystack/scenery";
 import { PlayPauseButton, ResetAllButton } from "scenerystack/scenery-phet";
 import { ScreenView, type ScreenViewOptions } from "scenerystack/sim";
 import {
@@ -105,35 +105,41 @@ export class SignalAndNoiseScreenView extends ScreenView {
       waitingMessage: true,
       calculateNoiseFloor: true,
     });
-    const rmsWidth = (width - layout.GAP) / 4;
+    const rmsWidth = (width - 3 * layout.GAP) / 4;
+    const readoutGroup = new AlignGroup();
     const bandSnr = new ReadoutRow(
       controls.bandSnrStringProperty,
       valueStringProperty(model.bandSnrProperty, units.decibelsStringProperty, 1),
       rmsWidth,
+      layout.RMS_BADGE_WIDTH,
     );
-    bandSnr.visibleProperty = model.showBandProperty;
-    const measurements = new GridBox({
-      rows: [
-        [
-          new ReadoutRow(
-            controls.signalRmsStringProperty,
-            valueStringProperty(model.signalRmsProperty, units.millivoltsStringProperty, 1, 1000),
-            rmsWidth,
-          ),
-          new ReadoutRow(
-            controls.noiseRmsStringProperty,
-            valueStringProperty(model.noiseRmsProperty, units.millivoltsStringProperty, 1, 1000),
-            rmsWidth,
-          ),
-          new ReadoutRow(
-            controls.wideSnrStringProperty,
-            valueStringProperty(model.wideSnrProperty, units.decibelsStringProperty, 1),
-            rmsWidth,
-          ),
-          bandSnr,
-        ],
-      ],
-      xSpacing: layout.GAP / 3,
+    model.showBandProperty.link((visible) => {
+      bandSnr.opacity = visible ? 1 : 0;
+      bandSnr.pdomVisible = visible;
+    });
+    const measurements = new HBox({
+      children: [
+        new ReadoutRow(
+          controls.signalRmsStringProperty,
+          valueStringProperty(model.signalRmsProperty, units.millivoltsStringProperty, 1, 1000),
+          rmsWidth,
+          layout.RMS_BADGE_WIDTH,
+        ),
+        new ReadoutRow(
+          controls.noiseRmsStringProperty,
+          valueStringProperty(model.noiseRmsProperty, units.millivoltsStringProperty, 1, 1000),
+          rmsWidth,
+          layout.RMS_BADGE_WIDTH,
+        ),
+        new ReadoutRow(
+          controls.wideSnrStringProperty,
+          valueStringProperty(model.wideSnrProperty, units.decibelsStringProperty, 1),
+          rmsWidth,
+          layout.RMS_BADGE_WIDTH,
+        ),
+        bandSnr,
+      ].map((row) => readoutGroup.createBox(row)),
+      spacing: layout.GAP,
       excludeInvisibleChildrenFromBounds: false,
     });
     const plots = new VBox({

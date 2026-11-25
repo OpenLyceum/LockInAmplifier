@@ -9,7 +9,7 @@
  * tests below using forceGC().
  */
 
-import { NumberProperty, Property } from "scenerystack/axon";
+import { BooleanProperty, NumberProperty, Property } from "scenerystack/axon";
 import { Range } from "scenerystack/dot";
 import { describe, expect, it, vi } from "vitest";
 import { ReferenceOscillator } from "../src/common/model/ReferenceOscillator.js";
@@ -28,10 +28,13 @@ import { SpectrumChartNode } from "../src/common/view/SpectrumChartNode.js";
 import { StripChartNode } from "../src/common/view/StripChartNode.js";
 import { TimeConstantControl } from "../src/common/view/TimeConstantControl.js";
 import { FilteringModel } from "../src/filtering/model/FilteringModel.js";
+import { BodePlot, HistogramNode, NoiseScalingPlot } from "../src/filtering/view/FilteringPlots.js";
 import Colors from "../src/LockInAmplifierColors.js";
 import { VirtualExperimentModel } from "../src/lab/model/VirtualExperimentModel.js";
 import { MixingModel } from "../src/mixing/model/MixingModel.js";
 import { PhaseDetectionModel } from "../src/phase/model/PhaseDetectionModel.js";
+import { PhasorPlane } from "../src/phase/view/PhasorPlane.js";
+import { RotaryKnob } from "../src/phase/view/RotaryKnob.js";
 import { SignalAndNoiseModel } from "../src/signal-and-noise/model/SignalAndNoiseModel.js";
 import { describeDisposalLeaks } from "./helpers/memoryLeak.js";
 
@@ -144,6 +147,38 @@ describeDisposalLeaks([
   {
     name: "ReadoutRow",
     create: () => new ReadoutRow(charts.inputStringProperty, charts.waitingStringProperty, 220),
+  },
+]);
+
+// memory-leak-covers: KnobDragListener
+const filterModel = new FilteringModel();
+const phaseModel = new PhaseDetectionModel();
+const dualProperty = new BooleanProperty(true);
+describeDisposalLeaks([
+  {
+    name: "HistogramNode",
+    create: () => {
+      const node = new HistogramNode(filterModel);
+      node.step(0, new Range(0, 0.1));
+      return node;
+    },
+  },
+  { name: "BodePlot", create: () => new BodePlot(filterModel, 320), keepAlive: () => [filterModel] },
+  { name: "NoiseScalingPlot", create: () => new NoiseScalingPlot(filterModel, 320), keepAlive: () => [filterModel] },
+  {
+    name: "PhasorPlane",
+    create: () => {
+      const node = new PhasorPlane(phaseModel, dualProperty);
+      node.step(0);
+      return node;
+    },
+    keepAlive: () => [phaseModel, dualProperty],
+  },
+  {
+    name: "RotaryKnob",
+    create: () =>
+      new RotaryKnob(phaseModel.referencePhaseProperty, controls.phaseStringProperty, controls.phaseStringProperty),
+    keepAlive: () => [phaseModel],
   },
 ]);
 

@@ -14,26 +14,27 @@ export class ReadoutRow extends HBox {
     labelProperty: TReadOnlyProperty<string>,
     valueProperty: TReadOnlyProperty<string>,
     width: number,
+    badgeWidth: number = metrics.READOUT_WIDTH,
   ) {
     const label = instrumentText(labelProperty, {
       font: chartLabelFont,
-      maxWidth: width - metrics.READOUT_WIDTH - metrics.CONTENT_GAP,
+      maxWidth: width - badgeWidth - metrics.CONTENT_GAP,
     });
     const value = instrumentText(valueProperty, {
       font: chartLabelFont,
-      maxWidth: metrics.READOUT_WIDTH - 2 * metrics.FIELD_INSET,
+      maxWidth: badgeWidth - 2 * metrics.FIELD_INSET,
     });
     const badge = new LockInAmplifierPanel(value, {
       fill: Colors.badgeBackgroundColorProperty,
       stroke: null,
       xMargin: metrics.FIELD_INSET,
       yMargin: metrics.FIELD_INSET / 2,
-      minWidth: metrics.READOUT_WIDTH,
+      minWidth: badgeWidth,
       align: "right",
     });
     const aligned = new AlignBox(label, {
       xAlign: "left",
-      preferredWidth: width - metrics.READOUT_WIDTH - metrics.CONTENT_GAP,
+      preferredWidth: width - badgeWidth - metrics.CONTENT_GAP,
     });
     super({ spacing: metrics.CONTENT_GAP, children: [aligned, badge] });
     this.bag.own(badge, aligned, label, value);
