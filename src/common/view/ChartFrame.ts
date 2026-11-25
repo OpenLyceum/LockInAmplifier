@@ -20,6 +20,7 @@ type FrameOptions = {
   accessibleDescription?: TReadOnlyProperty<string>;
   compact?: boolean;
   showXAxis?: boolean;
+  footerHeight?: number;
 };
 
 type Tick = { value: number; label: string };
@@ -47,7 +48,8 @@ export class ChartFrame extends Node {
     });
     this.chartLeft = options.plotLeft ?? settings.LEFT;
     this.chartTop = options.compact ? settings.COMPACT_TOP : settings.TOP;
-    const bottom = options.showXAxis === false ? settings.COMPACT_BOTTOM : settings.BOTTOM;
+    const footerHeight = options.footerHeight ?? 0;
+    const bottom = (options.showXAxis === false ? settings.COMPACT_BOTTOM : settings.BOTTOM) + footerHeight;
     this.plotWidth = options.width - this.chartLeft - settings.RIGHT;
     this.plotHeight = options.height - this.chartTop - bottom;
     this.chartTransform = new ChartTransform({ viewWidth: this.plotWidth, viewHeight: this.plotHeight });
@@ -103,7 +105,7 @@ export class ChartFrame extends Node {
         font: chartLabelFont,
         fill: Colors.mutedTextColorProperty,
         centerX: this.chartLeft + this.plotWidth / 2,
-        bottom: options.height - settings.AXIS_LABEL_GAP,
+        bottom: options.height - footerHeight - settings.AXIS_LABEL_GAP,
       });
       this.addChild(xTitle);
       this.bag.own(xTitle);
@@ -145,14 +147,16 @@ export class ChartFrame extends Node {
     for (const tick of yTicks) {
       const y = this.chartTransform.modelToViewY(tick.value);
       grid.moveTo(0, y).lineTo(this.plotWidth, y);
-      this.yLabels.addChild(
-        instrumentText(tick.label, {
-          font: chartLabelFont,
-          fill: Colors.mutedTextColorProperty,
-          right: -settings.AXIS_LABEL_GAP,
-          centerY: y,
-        }),
-      );
+      if (this.yLabels.visible) {
+        this.yLabels.addChild(
+          instrumentText(tick.label, {
+            font: chartLabelFont,
+            fill: Colors.mutedTextColorProperty,
+            right: -settings.AXIS_LABEL_GAP,
+            centerY: y,
+          }),
+        );
+      }
     }
     this.grid.shape = grid;
   }

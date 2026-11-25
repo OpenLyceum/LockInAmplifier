@@ -2,8 +2,9 @@
 import { DerivedProperty } from "scenerystack/axon";
 import { Range } from "scenerystack/dot";
 import { Shape } from "scenerystack/kite";
-import { HBox, Path } from "scenerystack/scenery";
+import { HBox, Node, Path, RichText, VBox } from "scenerystack/scenery";
 import { cutoff3dB, type FilterOrder, magnitude, predictedOutputNoise } from "../../common/model/LockInMath.js";
+import { niceTicks } from "../../common/view/axisScale.js";
 import { ChartFrame } from "../../common/view/ChartFrame.js";
 import { chartLabelFont, formatValue, instrumentStrings, instrumentText } from "../../common/view/instrumentText.js";
 import { StringManager } from "../../i18n/StringManager.js";
@@ -73,14 +74,11 @@ export class HistogramNode extends ChartFrame {
         new Range(0, percent / 100),
         range,
         horizontal.map((value) => ({ value: value / 100, label: String(value) })),
-        Array.from({ length: CHART_SETTINGS.TIME_TICK_INTERVALS }, (_, index) => ({
-          value: range.min + (index * range.getLength()) / (CHART_SETTINGS.TIME_TICK_INTERVALS - 1),
-          label: "",
-        })),
+        niceTicks(range, CHART_SETTINGS.TIME_TICK_INTERVALS - 1),
       );
     }
     const bars = new Shape();
-    if (count && this.model.canRecord) {
+    if (count && this.model.hasStatistics) {
       bins.forEach((bin, index) => {
         const center = max === min ? min : min + (index + 0.5) * binWidth;
         const height = max === min ? frameWidth * 2 : (this.plotHeight * binWidth) / range.getLength();
@@ -120,6 +118,7 @@ export class BodePlot extends ChartFrame {
       xTitle: instrumentStrings.charts.frequencyHzStringProperty,
       yUnit: instrumentStrings.charts.decibelGainStringProperty,
       accessibleDescription: a11y.bodeStringProperty,
+      footerHeight: settings.POWER_INSET_FOOTER_HEIGHT,
     });
     const frequencyTicks = xTicks(settings.BODE_DECADES);
     const low = Math.log10(settings.BODE_DECADES[0]);
@@ -138,31 +137,59 @@ export class BodePlot extends ChartFrame {
       font: chartLabelFont,
       fill: Colors.guideColorProperty,
     });
-    const insetLeft = CHART_SETTINGS.AXIS_LABEL_GAP * 2;
-    const insetBottom = this.plotHeight - CHART_SETTINGS.LABEL_SIZE - 2 * CHART_SETTINGS.AXIS_LABEL_GAP;
-    const insetTop = insetBottom - settings.POWER_INSET_HEIGHT;
-    const insetBorder = new Path(
-      new Shape().rect(insetLeft, insetTop, settings.POWER_INSET_WIDTH, settings.POWER_INSET_HEIGHT),
-      { fill: Colors.chartBackgroundColorProperty, stroke: Colors.axisColorProperty },
+    const gap = CHART_SETTINGS.AXIS_LABEL_GAP;
+    const insetWidth = settings.POWER_INSET_WIDTH;
+    const insetHeight = settings.POWER_INSET_HEIGHT;
+    const captionWidth = width - insetWidth - CHART_SETTINGS.LABEL_SIZE - 7 * gap;
+    const powerFrequencyProperty = new DerivedProperty(
+      [model.timeConstantProperty, strings.powerFrequencyStringProperty],
+      (tau, pattern) => formatValue(pattern, 1 / tau, 2, true),
     );
+    const bandwidthProperty = new DerivedProperty(
+      [model.enbwProperty, strings.powerWidthStringProperty],
+      (bandwidth, pattern) => formatValue(pattern, bandwidth, 3, true),
+    );
+    const captionOptions = {
+      font: chartLabelFont,
+      fill: Colors.mutedTextColorProperty,
+    };
+    const powerFrequency = instrumentText(powerFrequencyProperty, { ...captionOptions, maxWidth: insetWidth });
+    const powerArea = new RichText(strings.powerAreaStringProperty, { ...captionOptions, lineWrap: captionWidth });
+    const powerWidth = instrumentText(bandwidthProperty, { ...captionOptions, maxWidth: captionWidth });
+    const caption = new VBox({
+      children: [powerArea, powerWidth],
+      align: "left",
+      spacing: gap,
+    });
+    const insetBorder = new Path(new Shape().rect(0, 0, insetWidth, insetHeight), {
+      stroke: Colors.axisColorProperty,
+    });
     const powerFill = new Path(null, { fill: Colors.rangeBandColorProperty, stroke: Colors.guideColorProperty });
     const powerCurve = new Path(null, {
       stroke: Colors.outputTraceColorProperty,
       lineWidth: CHART_SETTINGS.TRACE_WIDTH,
     });
-    const insetRangeProperty = new DerivedProperty(
-      [model.timeConstantProperty, strings.powerInsetStringProperty],
-      (tau, pattern) => formatValue(pattern, 1 / tau, 2, true),
-    );
-    const insetLabel = instrumentText(insetRangeProperty, {
-      font: chartLabelFont,
-      fill: Colors.mutedTextColorProperty,
-      left: insetLeft,
-      top: insetBottom + CHART_SETTINGS.AXIS_LABEL_GAP,
+    const insetTitle = instrumentText(strings.powerTitleStringProperty, captionOptions);
+    const powerGain = instrumentText(strings.powerGainStringProperty, {
+      ...captionOptions,
+      rotation: -Math.PI / 2,
+      maxWidth: insetHeight + CHART_SETTINGS.LABEL_SIZE,
     });
-    this.plot.children = [response, cutoff, dot, cutoffLabel, insetBorder, powerFill, powerCurve, insetLabel];
+    const powerPlot = new Node({ children: [insetBorder, powerFill, powerCurve] });
+    const horizontalAxis = new VBox({ children: [powerPlot, powerFrequency], spacing: gap / 2 });
+    const insetBody = new HBox({ children: [powerGain, horizontalAxis, caption], spacing: gap });
+    const inset = new VBox({
+      children: [insetTitle, insetBody],
+      align: "left",
+      spacing: gap / 2,
+      left: 2 * gap,
+      bottom: settings.BOTTOM_HEIGHT - gap,
+    });
+    this.addChild(inset);
+    this.plot.children = [response, cutoff, dot, cutoffLabel];
     this.bag.own(
-      insetRangeProperty,
+      powerFrequencyProperty,
+      bandwidthProperty,
       response,
       cutoff,
       dot,
@@ -170,7 +197,16 @@ export class BodePlot extends ChartFrame {
       insetBorder,
       powerFill,
       powerCurve,
-      insetLabel,
+      insetTitle,
+      powerGain,
+      powerFrequency,
+      powerArea,
+      powerWidth,
+      caption,
+      powerPlot,
+      horizontalAxis,
+      insetBody,
+      inset,
     );
     const draw = (): void => {
       const tau = model.timeConstantProperty.value;
@@ -180,16 +216,15 @@ export class BodePlot extends ChartFrame {
       const bandwidth = model.enbwProperty.value;
       // Here 0 ≤ f ≤ 1/τ is linear. Unit height and width ENBW give the same
       // integral as the complete power curve, including its tail beyond the inset.
-      const step = settings.POWER_INSET_WIDTH * bandwidth * tau;
-      powerFill.shape = new Shape().rect(insetLeft, insetTop, step, settings.POWER_INSET_HEIGHT);
+      powerFill.shape = new Shape().rect(0, 0, insetWidth * bandwidth * tau, insetHeight);
       for (let index = 0; index <= settings.RESPONSE_POINTS; index++) {
         const u = index / settings.RESPONSE_POINTS;
         const logF = low + (high - low) * u;
         const db = 20 * Math.log10(magnitude(10 ** logF, tau, order));
         const x = this.chartTransform.modelToViewX(logF);
         const y = this.chartTransform.modelToViewY(Math.max(bottom - 1, db));
-        const powerX = insetLeft + u * settings.POWER_INSET_WIDTH;
-        const powerY = insetBottom - settings.POWER_INSET_HEIGHT * magnitude(u / tau, tau, order) ** 2;
+        const powerX = u * insetWidth;
+        const powerY = insetHeight * (1 - magnitude(u / tau, tau, order) ** 2);
         if (index === 0) {
           curve.moveTo(x, y);
           power.moveTo(powerX, powerY);
@@ -202,7 +237,7 @@ export class BodePlot extends ChartFrame {
       powerCurve.shape = power;
       const x = this.chartTransform.modelToViewX(Math.log10(cutoff3dB(tau, order)));
       const y = this.chartTransform.modelToViewY(10 * Math.log10(0.5));
-      cutoff.shape = new Shape().moveTo(x, y).lineTo(x, insetTop - settings.MARKER_SIZE);
+      cutoff.shape = new Shape().moveTo(x, y).lineTo(x, this.plotHeight);
       dot.shape = new Shape().circle(x, y, settings.MARKER_SIZE);
       cutoffLabel.right = x - CHART_SETTINGS.AXIS_LABEL_GAP;
       cutoffLabel.top = y + CHART_SETTINGS.AXIS_LABEL_GAP;

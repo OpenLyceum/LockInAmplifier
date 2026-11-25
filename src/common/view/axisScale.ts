@@ -13,7 +13,7 @@
  * does move; continuous scaling would leave the ticks twitching at every frame.
  */
 
-import { toFixedNumber } from "scenerystack/dot";
+import { type Range, toFixedNumber } from "scenerystack/dot";
 import { CHART_SETTINGS } from "../../LockInAmplifierConstants.js";
 
 /**
@@ -38,6 +38,17 @@ function niceStep(value: number): number {
 export function formatTickValue(value: number, spacing: number): string {
   const decimals = Math.max(0, Math.min(6, Math.ceil(-Math.log10(spacing)) + 1));
   return toFixedNumber(value, decimals).toString();
+}
+
+/** Choose ticks on the 1–2–5 grid inside a fixed domain. */
+export function niceTicks(range: Range, intervals: number): { value: number; label: string }[] {
+  const spacing = niceStep(range.getLength() / intervals);
+  const first = Math.ceil(range.min / spacing);
+  const last = Math.floor(range.max / spacing);
+  return Array.from({ length: last - first + 1 }, (_, index) => {
+    const value = (first + index) * spacing;
+    return { value, label: formatTickValue(value, spacing) };
+  });
 }
 
 /** Expand before clipping, and contract only after the signal clears a lower threshold. */

@@ -16,14 +16,14 @@ export class SampleClock {
   }
 
   /** Carry partial samples across steps and permanently drop time beyond the per-step cap. */
-  public samplesDue(dtSeconds: number): number {
+  public samplesDue(dtSeconds: number, maxStepSeconds: number = SAMPLING_SETTINGS.MAX_STEP_SECONDS): number {
     if (!Number.isFinite(dtSeconds) || dtSeconds <= 0) {
       return 0;
     }
-    const budget =
-      this.fractionalSamples + Math.min(dtSeconds, SAMPLING_SETTINGS.MAX_STEP_SECONDS) * SAMPLING_SETTINGS.SAMPLE_RATE;
-    const due = Math.floor(budget);
-    this.fractionalSamples = budget - due;
+    const budget = this.fractionalSamples + Math.min(dtSeconds, maxStepSeconds) * SAMPLING_SETTINGS.SAMPLE_RATE;
+    // Frame-time arithmetic can leave a whole-sample boundary a few ulps short.
+    const due = Math.floor(budget + 2 * Number.EPSILON * budget);
+    this.fractionalSamples = Math.max(0, budget - due);
     this.samplesProduced += due;
     this.elapsedTimeProperty.value = this.samplesProduced / SAMPLING_SETTINGS.SAMPLE_RATE;
     return due;

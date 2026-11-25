@@ -5,7 +5,7 @@ import { Shape } from "scenerystack/kite";
 import { Path, Rectangle, type TColor } from "scenerystack/scenery";
 import Colors from "../../LockInAmplifierColors.js";
 import { CHART_SETTINGS as settings } from "../../LockInAmplifierConstants.js";
-import { formatTickValue, hystereticSpan } from "./axisScale.js";
+import { formatTickValue, hystereticSpan, niceTicks } from "./axisScale.js";
 import { ChartFrame } from "./ChartFrame.js";
 
 type TimeFrameOptions = ConstructorParameters<typeof ChartFrame>[0];
@@ -91,19 +91,17 @@ export class TimeChartNode extends ChartFrame {
       return { value, label: formatTickValue(value * (rolling ? 1 : msPerSecond), 1) };
     });
     const limit = this.span * settings.SCALE_HEADROOM;
-    const tickValues = fixedY
-      ? Array.from(
-          { length: tickIntervals },
-          (_, index) => fixedY.min + (fixedY.getLength() * index) / (tickIntervals - 1),
-        )
-      : this.timeOptions.compact
-        ? [-this.span, 0, this.span]
-        : [-this.span, -this.span / 2, 0, this.span / 2, this.span];
+    const tickValues = this.timeOptions.compact
+      ? [-this.span, 0, this.span]
+      : [-this.span, -this.span / 2, 0, this.span / 2, this.span];
+    const yTicks = fixedY
+      ? niceTicks(fixedY, tickIntervals - 1)
+      : tickValues.map((value) => ({ value, label: formatTickValue(value, this.span / 4) }));
     this.setAxes(
       new Range(start, end),
       fixedY ?? new Range(-limit, limit),
       xTicks,
-      tickValues.map((value) => ({ value, label: formatTickValue(value, (fixedY?.getLength() ?? this.span) / 4) })),
+      yTicks,
       this.timeOptions.showXAxis !== false,
     );
   }

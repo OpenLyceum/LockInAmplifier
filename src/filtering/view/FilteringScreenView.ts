@@ -1,19 +1,22 @@
 /** Four coordinated views of how the low-pass filter trades noise for response time. */
-import { DerivedProperty, type TReadOnlyProperty } from "scenerystack/axon";
+import { DerivedProperty, NumberProperty, type TReadOnlyProperty } from "scenerystack/axon";
 import { Range } from "scenerystack/dot";
 import { StringUtils } from "scenerystack/phetcommon";
 import { AlignGroup, HBox, Node, VBox } from "scenerystack/scenery";
-import { PlayPauseButton, ResetAllButton } from "scenerystack/scenery-phet";
+import { ResetAllButton, TimeControlNode } from "scenerystack/scenery-phet";
 import { ScreenView, type ScreenViewOptions } from "scenerystack/sim";
 import { RectangularPushButton } from "scenerystack/sun";
 import {
-  FLAT_BUTTON_APPEARANCE_OPTIONS,
   FLAT_PANEL_PUSH_BUTTON_OPTIONS,
+  FLAT_PLAY_PAUSE_STEP_BUTTON_OPTIONS,
   FLAT_RESET_ALL_BUTTON_OPTIONS,
   LIGHT_SURFACE_TEXT_FILL,
+  TIME_CONTROL_SPEED_RADIO_OPTIONS,
 } from "../../common/LockInAmplifierButtonOptions.js";
 import { LockInAmplifierPanel } from "../../common/LockInAmplifierPanel.js";
 import { type FilterOrder, predictedOutputNoise } from "../../common/model/LockInMath.js";
+import { DisposalBag } from "../../common/view/DisposalBag.js";
+import { instrumentCombo, numberChoices } from "../../common/view/instrumentControls.js";
 import {
   chartLabelFont,
   instrumentHeadingFont,
@@ -28,7 +31,11 @@ import { StripChartNode } from "../../common/view/StripChartNode.js";
 import { TimeConstantControl } from "../../common/view/TimeConstantControl.js";
 import { StringManager } from "../../i18n/StringManager.js";
 import Colors from "../../LockInAmplifierColors.js";
-import { P3_LAYOUT_SETTINGS as layout, FILTERING_SETTINGS as settings } from "../../LockInAmplifierConstants.js";
+import {
+  CHART_SETTINGS,
+  P3_LAYOUT_SETTINGS as layout,
+  FILTERING_SETTINGS as settings,
+} from "../../LockInAmplifierConstants.js";
 import type { FilteringModel } from "../model/FilteringModel.js";
 import { BodePlot, HistogramNode, NoiseScalingPlot } from "./FilteringPlots.js";
 import { FilteringScreenSummaryContent } from "./FilteringScreenSummaryContent.js";
@@ -40,6 +47,7 @@ export class FilteringScreenView extends ScreenView {
   private readonly strip: StripChartNode;
   private readonly histogram: HistogramNode;
   private readonly voltageRange: TReadOnlyProperty<Range>;
+  private readonly bag = new DisposalBag();
 
   public constructor(model: FilteringModel, options?: ScreenViewOptions) {
     super({ ...options, screenSummaryContent: new FilteringScreenSummaryContent(model) });
@@ -50,9 +58,20 @@ export class FilteringScreenView extends ScreenView {
     const bottom = bounds.bottom - layout.MARGIN;
     const width = bounds.width - 2 * layout.MARGIN - layout.GAP - settings.CONTROL_WIDTH;
     const chartWidth = (width - layout.GAP) / 2;
-    const windowProperty = new DerivedProperty([model.settlingTimeProperty], (settling) =>
-      Math.min(settings.STRIP_MAX_WINDOW, Math.max(settings.STRIP_MIN_WINDOW, Math.ceil(settling * 1.2))),
-    );
+    const windowProperty = new NumberProperty(settings.DEFAULT_STRIP_WINDOW, {
+      validValues: [...CHART_SETTINGS.STRIP_WINDOWS],
+    });
+    const popupLayer = new Node();
+    const windowChoices = numberChoices(CHART_SETTINGS.STRIP_WINDOWS, units.secondsStringProperty);
+    const windowCombo = instrumentCombo(windowProperty, windowChoices, popupLayer, a11y.controls.windowStringProperty);
+    const stripWidth = width - settings.HISTOGRAM_WIDTH - layout.GAP;
+    const windowControl = new HBox({
+      spacing: layout.ROW_GAP,
+      right: left + stripWidth - CHART_SETTINGS.RIGHT,
+      centerY: top + CHART_SETTINGS.TOP / 2,
+      children: [instrumentText(charts.windowStringProperty, { font: chartLabelFont }), windowCombo],
+    });
+    this.bag.own(windowProperty, ...windowChoices.map(({ labelProperty }) => labelProperty), popupLayer, windowCombo);
     // Preserve the scale for longer τ so a narrower noise band remains obvious on screen.
     const rangeProperty = new DerivedProperty(
       [model.amplitudeProperty, model.densityProperty, model.timeConstantProperty, model.orderProperty],
@@ -69,14 +88,14 @@ export class FilteringScreenView extends ScreenView {
     );
     this.voltageRange = rangeProperty;
     this.strip = new StripChartNode(model.history, {
-      width: width - settings.HISTOGRAM_WIDTH - layout.GAP,
+      width: stripWidth,
       height: settings.TOP_HEIGHT,
       title: strings.stripStringProperty,
       xTitle: charts.timeSecondsStringProperty,
       yUnit: charts.voltageStringProperty,
       color: Colors.outputTraceColorProperty,
       windowProperty,
-      statistics: () => (model.canRecord ? model.statistics : null),
+      statistics: () => (model.hasStatistics ? model.statistics : null),
       predicted: model.amplitudeProperty,
       predictedSigma: model.predictedSigmaProperty,
       yRange: () => this.voltageRange.value,
@@ -123,8 +142,19 @@ export class FilteringScreenView extends ScreenView {
       });
     const step = action(strings.stepStringProperty, a11y.controls.stepStringProperty, () => model.applyStep());
     const record = action(strings.recordStringProperty, a11y.controls.recordStringProperty, () => model.recordSigma());
-    model.measuredSigmaProperty.link((sigma) => {
-      record.enabled = Number.isFinite(sigma);
+    const collectingProperty = new DerivedProperty(
+      [model.measurementProgressProperty, strings.collectingStringProperty],
+      (progress, pattern) => StringUtils.fillIn(pattern, { percent: Math.floor(progress * 100) }),
+    );
+    const collecting = instrumentText(collectingProperty, {
+      font: chartLabelFont,
+      fill: Colors.mutedTextColorProperty,
+      accessibleParagraph: collectingProperty,
+    });
+    this.bag.own(collectingProperty, collecting);
+    this.bag.link(model.measurementProgressProperty, (progress) => {
+      record.enabled = progress === 1;
+      collecting.visible = progress < 1;
     });
     const clear = action(strings.clearStringProperty, a11y.controls.clearStringProperty, () =>
       model.clearMeasurements(),
@@ -164,7 +194,11 @@ export class FilteringScreenView extends ScreenView {
                 slope,
                 amplitudeControl,
                 densityControl,
-                new HBox({ spacing: layout.ROW_GAP, children: [step, record, clear] }),
+                new HBox({
+                  spacing: layout.ROW_GAP,
+                  excludeInvisibleChildrenFromBounds: false,
+                  children: [step, record, collecting, clear],
+                }),
                 instrumentText(countProperty, { font: chartLabelFont, fill: Colors.mutedTextColorProperty }),
               ],
             }),
@@ -213,15 +247,35 @@ export class FilteringScreenView extends ScreenView {
         ),
       ],
     });
-    const play = new PlayPauseButton(model.timer.isPlayingProperty, {
-      ...FLAT_BUTTON_APPEARANCE_OPTIONS,
-      radius: layout.PLAY_RADIUS,
+    const timeControl = new TimeControlNode(model.timer.isPlayingProperty, {
+      timeSpeedProperty: model.timer.timeSpeedProperty,
+      timeSpeeds: [...model.timer.timeSpeeds],
+      flowBoxSpacing: layout.GAP,
+      playPauseStepButtonOptions: {
+        ...FLAT_PLAY_PAUSE_STEP_BUTTON_OPTIONS,
+        includeStepForwardButton: false,
+        playPauseButtonOptions: {
+          ...FLAT_PLAY_PAUSE_STEP_BUTTON_OPTIONS.playPauseButtonOptions,
+          radius: layout.PLAY_RADIUS,
+        },
+      },
+      speedRadioButtonGroupOptions: {
+        ...TIME_CONTROL_SPEED_RADIO_OPTIONS.speedRadioButtonGroupOptions,
+        spacing: layout.ROW_GAP,
+        accessibleHelpText: a11y.controls.speedHelpStringProperty,
+        radioButtonOptions: {
+          selectedColor: Colors.accentColorProperty,
+          deselectedColor: Colors.controlSurfaceColorProperty,
+          centerColor: Colors.backgroundColorProperty,
+          stroke: Colors.axisColorProperty,
+        },
+      },
     });
     const footer = new HBox({
       left,
       bottom,
       spacing: layout.SECTION_GAP,
-      children: [play, instrumentText(strings.tradeoffStringProperty, { maxWidth: settings.FOOTER_NOTE_WIDTH })],
+      children: [timeControl, instrumentText(strings.tradeoffStringProperty, { maxWidth: settings.FOOTER_NOTE_WIDTH })],
     });
     const reset = new ResetAllButton({
       ...FLAT_RESET_ALL_BUTTON_OPTIONS,
@@ -231,13 +285,27 @@ export class FilteringScreenView extends ScreenView {
       listener: () => {
         this.interruptSubtreeInput();
         model.reset();
+        windowProperty.reset();
       },
     });
-    this.children = [chartGrid, panels, footer, reset, new Node({ pdomOrder: [chartGrid, panels, play, reset] })];
+    this.children = [
+      chartGrid,
+      windowControl,
+      panels,
+      footer,
+      reset,
+      popupLayer,
+      new Node({ pdomOrder: [chartGrid, windowControl, panels, footer, reset, popupLayer] }),
+    ];
   }
 
   public override step(dt: number): void {
     this.strip.step(dt);
     this.histogram.step(dt, this.voltageRange.value);
+  }
+
+  public override dispose(): void {
+    this.bag.dispose();
+    super.dispose();
   }
 }

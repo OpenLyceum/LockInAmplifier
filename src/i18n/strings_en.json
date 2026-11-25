@@ -82,7 +82,9 @@
         "density": "White noise density eₙ",
         "step": "Step the signal from zero to the selected amplitude",
         "record": "Record measured standard deviation",
-        "clear": "Clear recorded measurements"
+        "clear": "Clear recorded measurements",
+        "window": "Filtered output time window",
+        "speedHelp": "Fast runs the simulation at ten times normal speed."
       }
     },
     "phase": {
@@ -221,7 +223,11 @@
     "binProbability": "Samples per bin (%)",
     "bode": "Low-pass frequency response",
     "cutoffMarker": "−3 dB",
-    "powerInset": "ENBW • power, 0–{{value}} Hz",
+    "powerTitle": "Noise bandwidth (linear axes)",
+    "powerFrequency": "Frequency f (Hz), 0–{{value}}",
+    "powerGain": "|H(f)|² (unitless)",
+    "powerArea": "The shaded rectangle has the same area as |H(f)|².",
+    "powerWidth": "Width = ENBW = {{value}} Hz",
     "scaling": "Noise vs. time constant",
     "tauAxis": "Time constant τ (ms, log scale)",
     "sigmaAxis": "Noise σₓ (mV, log scale)",
@@ -238,6 +244,7 @@
     "measured": "Measured noise σₓ",
     "snr": "Output SNR (A / σₓ)",
     "recordCount": "Recorded measurements: {{count}}",
+    "collecting": "Collecting… {{percent}} %",
     "tradeoff": "10× longer τ gives √10× less noise and 10× slower settling. A steeper slope also reduces noise and slows settling.",
     "measuredKey": "Shaded band: measured mean ± σ",
     "predictedKey": "Guide lines: predicted A and A ± σ"

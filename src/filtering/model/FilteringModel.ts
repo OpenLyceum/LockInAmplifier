@@ -1,7 +1,8 @@
 /** A locked single-phase detector and a rolling window of its output. */
-import { DerivedProperty, NumberProperty, Property } from "scenerystack/axon";
+import { DerivedProperty, NumberProperty, Property, type TReadOnlyProperty } from "scenerystack/axon";
 import { Range } from "scenerystack/dot";
 import type { TModel } from "scenerystack/joist";
+import { TimeSpeed } from "scenerystack/scenery-phet";
 import { Decimator } from "../../common/model/Decimator.js";
 import { Demodulator } from "../../common/model/Demodulator.js";
 import { Histogram } from "../../common/model/Histogram.js";
@@ -20,6 +21,7 @@ import { SampleClock } from "../../common/model/SampleClock.js";
 import { SignalSource } from "../../common/model/SignalSource.js";
 import { TimeModel } from "../../common/TimeModel.js";
 import {
+  CHART_SETTINGS,
   FILTER_SETTINGS,
   SAMPLING_SETTINGS,
   SIGNAL_NOISE_SETTINGS,
@@ -34,7 +36,13 @@ function statsCapacity(tau: number): number {
 }
 
 export class FilteringModel implements TModel {
-  public readonly timer = new TimeModel({ initiallyPlaying: true });
+  public readonly timer = new TimeModel({
+    initiallyPlaying: true,
+    timeSpeedMultipliers: new Map([
+      [TimeSpeed.NORMAL, 1],
+      [TimeSpeed.FAST, settings.FAST_SPEED],
+    ]),
+  });
   public readonly amplitudeProperty = new NumberProperty(settings.AMPLITUDE, {
     range: new Range(...settings.AMPLITUDE_RANGE),
   });
@@ -50,8 +58,10 @@ export class FilteringModel implements TModel {
   public readonly measurementsProperty = new Property<readonly Measurement[]>([]);
   public readonly xProperty = new NumberProperty(settings.AMPLITUDE);
   public readonly measuredSigmaProperty = new Property(NaN);
+  private readonly mutableMeasurementProgressProperty = new NumberProperty(0, { range: new Range(0, 1) });
+  public readonly measurementProgressProperty: TReadOnlyProperty<number> = this.mutableMeasurementProgressProperty;
   public readonly stepTimeProperty = new Property<number | null>(null);
-  public readonly history = new RingBuffer(settings.STRIP_MAX_WINDOW * STRIP_RATE + 1);
+  public readonly history = new RingBuffer(Math.max(...CHART_SETTINGS.STRIP_WINDOWS) * STRIP_RATE + 1);
   public readonly histogram = new Histogram();
   public readonly enbwProperty = new DerivedProperty([this.timeConstantProperty, this.orderProperty], (tau, n) =>
     enbw(tau, n as FilterOrder),
@@ -79,7 +89,8 @@ export class FilteringModel implements TModel {
   private readonly decimator = new Decimator();
   private readonly histogramScratch = new Float64Array(statsCapacity(Math.max(...FILTER_SETTINGS.TIME_CONSTANTS)));
   private demodulator = this.createDetector();
-  private stats = new RunningStats(statsCapacity(settings.TIME_CONSTANT));
+  private requiredSamples = statsCapacity(settings.TIME_CONSTANT);
+  private stats = new RunningStats(this.requiredSamples);
   private statsStart = 0;
   private sampleIndex = 0;
   private statCount = 0;
@@ -96,9 +107,11 @@ export class FilteringModel implements TModel {
     });
     this.timeConstantProperty.lazyLink((tau) => {
       this.demodulator.setTimeConstant(tau);
-      this.stats = new RunningStats(statsCapacity(tau));
+      this.requiredSamples = statsCapacity(tau);
+      this.stats = new RunningStats(this.requiredSamples);
       this.restartStatistics();
     });
+    this.restartStatistics();
     this.orderProperty.lazyLink(() => {
       const x = this.demodulator.x;
       this.demodulator = this.createDetector();
@@ -110,7 +123,7 @@ export class FilteringModel implements TModel {
   public get statistics(): RunningStats {
     return this.stats;
   }
-  public get canRecord(): boolean {
+  public get hasStatistics(): boolean {
     return this.statCount >= 2;
   }
 
@@ -127,6 +140,7 @@ export class FilteringModel implements TModel {
     this.statCount = 0;
     this.statsStart = this.sampleIndex / SAMPLE_RATE + this.settlingTimeProperty.value;
     this.measuredSigmaProperty.value = NaN;
+    this.mutableMeasurementProgressProperty.reset();
   }
 
   /** Start a reproducible off-to-on transition at the current simulation time. */
@@ -142,7 +156,7 @@ export class FilteringModel implements TModel {
   }
 
   public recordSigma(): void {
-    if (this.canRecord) {
+    if (this.measurementProgressProperty.value === 1) {
       this.measurementsProperty.value = [
         ...this.measurementsProperty.value,
         {
@@ -163,7 +177,8 @@ export class FilteringModel implements TModel {
   }
 
   public step(dt: number): void {
-    const count = this.clock.samplesDue(this.timer.scaledDt(dt));
+    const maxStep = this.timer.timeSpeedProperty.value === TimeSpeed.FAST ? settings.FAST_MAX_STEP_SECONDS : undefined;
+    const count = this.clock.samplesDue(this.timer.scaledDt(dt), maxStep);
     if (count === 0) {
       return;
     }
@@ -175,16 +190,18 @@ export class FilteringModel implements TModel {
       if (average !== undefined) {
         this.history.push(average);
         // Sample X directly so anti-alias averaging does not narrow the measured distribution.
-        if (t >= this.statsStart) {
+        if (t > this.statsStart) {
           this.stats.push(x);
           this.statCount++;
         }
       }
     }
     this.xProperty.value = this.demodulator.x;
-    if (this.canRecord) {
+    const progress = Math.min(this.statCount / this.requiredSamples, 1);
+    if (progress === 1) {
       this.measuredSigmaProperty.value = this.stats.standardDeviation;
     }
+    this.mutableMeasurementProgressProperty.value = progress;
     this.timer.advance(count / SAMPLE_RATE);
   }
 
@@ -203,7 +220,6 @@ export class FilteringModel implements TModel {
     this.decimator.reset();
     this.history.reset();
     this.restartStatistics();
-    this.statsStart = 0;
     this.stepTimeProperty.reset();
     this.xProperty.reset();
     this.clearMeasurements();
@@ -223,6 +239,7 @@ export class FilteringModel implements TModel {
     this.measurementsProperty.dispose();
     this.xProperty.dispose();
     this.measuredSigmaProperty.dispose();
+    this.mutableMeasurementProgressProperty.dispose();
     this.stepTimeProperty.dispose();
     this.clock.dispose();
     this.reference.dispose();
