@@ -12,15 +12,21 @@
 
 import { StringProperty } from "scenerystack/axon";
 import { Tandem } from "scenerystack/tandem";
-// seed:soak-imports:start
-import SimColors from "../../src/SimColors.js";
-import { SimScreen } from "../../src/sim-screen/SimScreen.js";
-// seed:soak-imports:end
+import { FilteringScreen } from "../../src/filtering/FilteringScreen.js";
+import LockInAmplifierColors from "../../src/LockInAmplifierColors.js";
+import { VirtualExperimentScreen } from "../../src/lab/VirtualExperimentScreen.js";
+import { MixingScreen } from "../../src/mixing/MixingScreen.js";
+import { PhaseDetectionScreen } from "../../src/phase/PhaseDetectionScreen.js";
+import { SignalAndNoiseScreen } from "../../src/signal-and-noise/SignalAndNoiseScreen.js";
 import { describeHeadlessSoak } from "../helpers/headlessSoak.js";
 
 describeHeadlessSoak({
-  // seed:soak-screens:start
-  screens: () => [new SimScreen({ name: new StringProperty("Sim"), tandem: Tandem.OPT_OUT })],
-  tracked: () => ({ SimColors }),
-  // seed:soak-screens:end
+  screens: () => [
+    new SignalAndNoiseScreen({ name: new StringProperty("Signal and Noise"), tandem: Tandem.OPT_OUT }),
+    new MixingScreen({ name: new StringProperty("Mixing"), tandem: Tandem.OPT_OUT }),
+    new FilteringScreen({ name: new StringProperty("Filtering"), tandem: Tandem.OPT_OUT }),
+    new PhaseDetectionScreen({ name: new StringProperty("Phase Detection"), tandem: Tandem.OPT_OUT }),
+    new VirtualExperimentScreen({ name: new StringProperty("Virtual Experiment"), tandem: Tandem.OPT_OUT }),
+  ],
+  tracked: () => ({ LockInAmplifierColors }),
 });

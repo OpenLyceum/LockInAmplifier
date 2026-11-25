@@ -21,24 +21,47 @@ import "./brand.js";
 
 import { onReadyToLaunch, PreferencesModel, Sim } from "scenerystack/sim";
 import { Tandem } from "scenerystack/tandem";
+import { FilteringScreen } from "./filtering/FilteringScreen.js";
 import { StringManager } from "./i18n/StringManager.js";
-import { SimPreferencesModel } from "./preferences/SimPreferencesModel.js";
-import { SimPreferencesNode } from "./preferences/SimPreferencesNode.js";
-import SimColors from "./SimColors.js";
-import { SimScreen } from "./sim-screen/SimScreen.js";
+import LockInAmplifierColors from "./LockInAmplifierColors.js";
+import { VirtualExperimentScreen } from "./lab/VirtualExperimentScreen.js";
+import { MixingScreen } from "./mixing/MixingScreen.js";
+import { PhaseDetectionScreen } from "./phase/PhaseDetectionScreen.js";
+import { LockInAmplifierPreferencesModel } from "./preferences/LockInAmplifierPreferencesModel.js";
+import { LockInAmplifierPreferencesNode } from "./preferences/LockInAmplifierPreferencesNode.js";
+import { SignalAndNoiseScreen } from "./signal-and-noise/SignalAndNoiseScreen.js";
 
 onReadyToLaunch(() => {
   const stringManager = StringManager.getInstance();
 
-  // Simulation-specific preferences; initial values come from simQueryParameters.
-  const simPreferences = new SimPreferencesModel(Tandem.ROOT.createTandem("preferences"));
+  // Simulation-specific preferences; initial values come from lockInAmplifierQueryParameters.
+  const simPreferences = new LockInAmplifierPreferencesModel(Tandem.ROOT.createTandem("preferences"));
 
   const screens = [
-    new SimScreen({
-      // The screen name Property updates automatically when the locale changes
-      name: stringManager.getScreenNames().simStringProperty,
-      tandem: Tandem.ROOT.createTandem("simScreen"),
-      backgroundColorProperty: SimColors.backgroundColorProperty,
+    new SignalAndNoiseScreen({
+      name: stringManager.getScreenNames().signalAndNoiseStringProperty,
+      tandem: Tandem.ROOT.createTandem("signalAndNoiseScreen"),
+      backgroundColorProperty: LockInAmplifierColors.backgroundColorProperty,
+    }),
+    new MixingScreen({
+      name: stringManager.getScreenNames().mixingStringProperty,
+      tandem: Tandem.ROOT.createTandem("mixingScreen"),
+      backgroundColorProperty: LockInAmplifierColors.backgroundColorProperty,
+    }),
+    new FilteringScreen({
+      name: stringManager.getScreenNames().filteringStringProperty,
+      tandem: Tandem.ROOT.createTandem("filteringScreen"),
+      backgroundColorProperty: LockInAmplifierColors.backgroundColorProperty,
+    }),
+    new PhaseDetectionScreen({
+      name: stringManager.getScreenNames().phaseStringProperty,
+      tandem: Tandem.ROOT.createTandem("phaseScreen"),
+      backgroundColorProperty: LockInAmplifierColors.backgroundColorProperty,
+    }),
+    new VirtualExperimentScreen({
+      name: stringManager.getScreenNames().labStringProperty,
+      tandem: Tandem.ROOT.createTandem("labScreen"),
+      backgroundColorProperty: LockInAmplifierColors.backgroundColorProperty,
     }),
   ];
 
@@ -53,7 +76,7 @@ onReadyToLaunch(() => {
       simulationOptions: {
         customPreferences: [
           {
-            createContent: (tandem: Tandem) => new SimPreferencesNode(simPreferences, tandem),
+            createContent: (tandem: Tandem) => new LockInAmplifierPreferencesNode(simPreferences, tandem),
           },
         ],
       },
