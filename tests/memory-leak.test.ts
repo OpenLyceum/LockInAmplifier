@@ -10,6 +10,9 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
+import { ReferenceOscillator } from "../src/common/model/ReferenceOscillator.js";
+import { SampleClock } from "../src/common/model/SampleClock.js";
+import { SignalSource } from "../src/common/model/SignalSource.js";
 import { TimeModel } from "../src/common/TimeModel.js";
 import { FilteringModel } from "../src/filtering/model/FilteringModel.js";
 import { VirtualExperimentModel } from "../src/lab/model/VirtualExperimentModel.js";
@@ -19,6 +22,8 @@ import { SignalAndNoiseModel } from "../src/signal-and-noise/model/SignalAndNois
 import { describeDisposalLeaks } from "./helpers/memoryLeak.js";
 
 describeDisposalLeaks([
+  { name: "ReferenceOscillator", create: () => new ReferenceOscillator(new SignalSource()) },
+  { name: "SampleClock", create: () => new SampleClock() },
   { name: "TimeModel", create: () => new TimeModel(), idempotentDispose: true },
   { name: "SignalAndNoiseModel", create: () => new SignalAndNoiseModel() },
   { name: "MixingModel", create: () => new MixingModel() },
